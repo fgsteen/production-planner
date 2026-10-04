@@ -64,7 +64,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
 | R44 | Scale to 20–50 products: tables and charts (demand grid, plan tables, weekly views) stay usable without wide sideways scrolling. Group or filter by characteristic X/Y/Z, or expand and collapse groups. S07: "Group by" product/X/Y/Z in the demand grid (read-only sums) and the shifts table; not yet in the weekly views. | M | building | S05 |
 | R46 | Warehouse panel on the Plan page: one section per storage location, showing per ISO week the stock in pallets by product (the product mix) against its capacity. Stacked bars per week with a capacity line, and a toggle to a week × product table, like the weekly machine plan (R42). Built in S07 (locations pooled as in the MILP). | M | done | after S06 |
-| R45 | Every panel with a chart or table has a small icon to download it as a PNG for presentations (2× resolution, light theme). Wide tables export whole; panel controls are left out. | M | done | S05 |
+| R45 | Every panel with a chart or table has a small icon to download it as a PNG for presentations (2× resolution; light theme today, to follow the site's theme: user, after S08). Wide tables export whole; panel controls are left out. | M | done | S05 |
 
 ## Excel
 | ID | Requirement | Prio | Status | Source |

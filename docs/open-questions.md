@@ -13,8 +13,6 @@ Answered questions move into the relevant doc (vision, domain, requirements, ADR
 - **SFG with a pre-SFG made at A** (S07): the MILP consumes the pre-SFG wherever the SFG is
   made (at A it would come from A's stores). In the demo those SFGs are B-only. Should an SFG
   with a pre-SFG be allowed at A at all?
-- **Initial stock in the demo** (S07): the demo starts with no stock, so week 1 is a crunch. Should
-  the demo start with, say, half a week of demand in stock at A?
 - **Bottleneck view** (after S07): what should it show when demand exceeds capacity? For example,
   the value of one more shift per machine, pallet of storage or truck per week (shadow prices), or
   a ranked "what limits the plan" list (R39). (Unmet demand itself: fair share, R64.)
