@@ -26,14 +26,15 @@ function useDraft(value: string, commit: (draft: string) => boolean) {
   return { value: draft, onChange: (e: { target: { value: string } }) => setDraft(e.target.value), onBlur: finish, onKeyDown };
 }
 
-export function TextCell({ value, onCommit, label }: { value: string; onCommit: (v: string) => void; label: string }) {
+/** `placeholder` set: clearing the field commits `''` (the placeholder is the default). Otherwise empty is refused. */
+export function TextCell({ value, onCommit, label, placeholder }: { value: string; onCommit: (v: string) => void; label: string; placeholder?: string }) {
   const props = useDraft(value, (d) => {
     const v = d.trim();
-    if (!v) return false;
+    if (!v && placeholder === undefined) return false;
     onCommit(v);
     return true;
   });
-  return <input aria-label={label} className={INPUT} {...props} />;
+  return <input aria-label={label} placeholder={placeholder} className={`${INPUT} placeholder:text-faint`} {...props} />;
 }
 
 export function NumberCell({ value, onCommit, label, suffix }: { value: number; onCommit: (v: number) => void; label: string; suffix?: string }) {

@@ -9,7 +9,7 @@ test.describe('overview', () => {
     await expect(page.getByRole('heading', { name: 'Production Planner' })).toBeVisible();
     for (const id of ['B1', 'B2', 'B3', 'B4']) await expect(page.getByTestId('site-B').getByTestId(`machine-${id}`)).toBeVisible();
     for (const id of ['A1', 'A2', 'A3', 'A4']) await expect(page.getByTestId('site-A').getByTestId(`machine-${id}`)).toBeVisible();
-    await expect(page.getByTestId('machine-B1')).toContainText('SF-01 Alder');
+    await expect(page.getByTestId('machine-B1')).toContainText('K-1-Alder');
     await expect(page.getByTestId('machine-B1')).toContainText('936/h'); // 1,200 × 78 %
   });
 

@@ -30,14 +30,41 @@ test.describe('master data', () => {
   test('a new product is flagged until a machine can make it', async ({ page }) => {
     await page.getByRole('tab', { name: 'Products' }).click();
     await page.getByRole('button', { name: '+ Product' }).click();
-    await expect(page.getByTestId('problems')).toContainText('Product P11: no machine can produce it');
+    await expect(page.getByTestId('problems')).toContainText('Product P21: no machine can produce it');
 
     await page.getByRole('tab', { name: 'Capabilities' }).click();
     await page.getByLabel('New capability machine').selectOption('A1');
-    await page.getByLabel('New capability product').selectOption('P11');
+    await page.getByLabel('New capability product').selectOption('P21');
     await page.getByRole('button', { name: '+ Capability' }).click();
-    await expect(page.getByTestId('cap-row-A1-P11')).toBeVisible();
+    await expect(page.getByTestId('cap-row-A1-P21')).toBeVisible();
     await expect(page.getByTestId('problems')).toHaveCount(0);
+  });
+
+  test('products are X-Y-Z combinations; renamed variants carry through, duplicates are flagged', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Characteristics' }).click();
+    await expect(page.getByTestId('characteristic-X')).toContainText('5 products'); // K
+    await page.getByLabel('X variant X1').fill('Q');
+    await page.getByLabel('X variant X1').press('Enter');
+    await expect(page.getByRole('button', { name: 'Remove Y variant Y1' })).toHaveCount(0); // in use: can't be removed
+
+    await page.getByRole('tab', { name: 'Products' }).click();
+    await expect(page.getByLabel('P01 name')).toHaveAttribute('placeholder', 'Q-1-Alder');
+    await page.getByLabel('P02 Z').selectOption({ label: 'Alder' });
+    await expect(page.getByTestId('problems')).toContainText('Products P01 and P02 are both Q-1-Alder');
+    await page.getByLabel('P02 Z').selectOption({ label: 'Birch' });
+    await expect(page.getByTestId('problems')).toHaveCount(0);
+
+    // A custom name shows everywhere; clearing it goes back to the combination.
+    await page.getByLabel('P01 name').fill('Flagship');
+    await page.getByLabel('P01 name').press('Enter');
+    await page.goto('/#');
+    await expect(page.getByTestId('machine-B1')).toContainText('Flagship');
+    await page.goto('/#data');
+    await page.getByRole('tab', { name: 'Products' }).click();
+    await page.getByLabel('P01 name').fill('');
+    await page.getByLabel('P01 name').press('Enter');
+    await page.goto('/#');
+    await expect(page.getByTestId('machine-B1')).toContainText('Q-1-Alder');
   });
 
   test('reset restores the demo data', async ({ page }) => {

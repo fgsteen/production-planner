@@ -6,6 +6,7 @@ import { fmt, productColor } from '../ui/palette';
 import type { PlanResult } from './lp';
 import { TransportBreakdown, WeeklyMachinePlan } from './PlanDetails';
 import type { WorkerRequest, WorkerResponse } from './plan.worker';
+import { productName } from '../model/products';
 
 type State = { kind: 'solving' } | { kind: 'done'; plan: PlanResult } | { kind: 'error'; error: string };
 
@@ -106,10 +107,10 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
               <tr className="border-b border-line text-muted">
                 <th className="py-1.5 pr-3 text-left font-medium">Machine</th>
                 {products.map((p, i) => (
-                  <th key={p.id} className="px-1 py-1.5 text-right font-medium" title={p.name}>
+                  <th key={p.id} className="whitespace-nowrap px-1 py-1.5 text-right font-medium" title={p.id}>
                     <span className="inline-flex items-center gap-1">
                       <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                      {p.id}
+                      {productName(dataset, p)}
                     </span>
                   </th>
                 ))}

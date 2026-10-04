@@ -5,6 +5,7 @@ import { isoWeekRange, isoWeeks } from '../model/weeks';
 import { useDataset } from '../store/DatasetContext';
 import { OptionalNumberCell } from '../ui/cells';
 import { fmt, productColor } from '../ui/palette';
+import { productName } from '../model/products';
 
 const RED = '#e15759';
 const AMBER = '#edc948';
@@ -96,10 +97,10 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
             <tr>
               <th className="border-b border-line px-2 py-1.5 text-left font-medium text-muted">Week</th>
               {dataset.products.map((p, i) => (
-                <th key={p.id} className="min-w-[5.5rem] border-b border-line px-1 py-1.5 text-right font-medium" title={p.name}>
+                <th key={p.id} className="min-w-[5.5rem] whitespace-nowrap border-b border-line px-1 py-1.5 text-right font-medium" title={p.id}>
                   <span className="inline-flex items-center gap-1">
                     <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                    {p.id}
+                    {productName(dataset, p)}
                   </span>
                 </th>
               ))}
@@ -196,7 +197,7 @@ function ProductCheckTable({ dataset, check }: { dataset: Dataset; check: Capaci
                 <td className="py-1">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                    {dataset.products[i]?.name ?? p.productId}
+                    {dataset.products[i] ? productName(dataset, dataset.products[i]) : p.productId}
                   </span>
                 </td>
                 <td className="tabular py-1 text-right">{units(p.yearlyDemand)}</td>

@@ -4,6 +4,7 @@ import type { CapacityCheck } from '../model/demand';
 import type { Dataset, Id } from '../model/types';
 import { fmt, productColor } from '../ui/palette';
 import type { PlanResult } from './lp';
+import { productName } from '../model/products';
 
 const card = 'rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]';
 const one = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
@@ -32,9 +33,9 @@ function Legend({ dataset, productIds }: { dataset: Dataset; productIds: Set<Id>
     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
       {dataset.products.map((p, i) =>
         productIds.has(p.id) ? (
-          <li key={p.id} className="inline-flex items-center gap-1" title={p.name}>
+          <li key={p.id} className="inline-flex items-center gap-1 whitespace-nowrap" title={p.id}>
             <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-            {p.id}
+            {productName(dataset, p)}
           </li>
         ) : null,
       )}
@@ -159,10 +160,10 @@ function MachineWeekTable({
             <tr className="border-b border-line text-muted">
               <th className="py-1.5 pr-3 text-left font-medium">Week</th>
               {capable.map(({ p, i }) => (
-                <th key={p.id} className="px-2 py-1.5 text-right font-medium" title={p.name}>
+                <th key={p.id} className="whitespace-nowrap px-2 py-1.5 text-right font-medium" title={p.id}>
                   <span className="inline-flex items-center gap-1">
                     <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                    {p.id}
+                    {productName(dataset, p)}
                   </span>
                 </th>
               ))}
@@ -255,10 +256,10 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
                   <tr className="border-b border-line text-muted">
                     <th className="py-1.5 pr-3 text-left font-medium">Week</th>
                     {products.map(({ p, i }) => (
-                      <th key={p.id} className="px-2 py-1.5 text-right font-medium" title={p.name}>
+                      <th key={p.id} className="whitespace-nowrap px-2 py-1.5 text-right font-medium" title={p.id}>
                         <span className="inline-flex items-center gap-1">
                           <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                          {p.id}
+                          {productName(dataset, p)}
                         </span>
                       </th>
                     ))}

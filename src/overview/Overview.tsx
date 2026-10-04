@@ -4,6 +4,7 @@ import type { Dataset, Machine, Site } from '../model/types';
 import { isoWeeksInYear, isoYearRange } from '../model/weeks';
 import { fmt, productColor, siteColor } from '../ui/palette';
 import { SiteMap } from './SiteMap';
+import { productName } from '../model/products';
 
 export function Overview({ dataset }: { dataset: Dataset }) {
   const [focus, setFocus] = useState<string | null>(null);
@@ -137,7 +138,7 @@ function MachineCard({ machine, site, dataset, productColors, maxRate, focus, ye
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span className="flex items-center gap-2 truncate">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: color }} />
-                  {product.name}
+                  {productName(dataset, product)}
                 </span>
                 <span className="tabular shrink-0 font-medium">{fmt(eff)}/h</span>
               </div>
@@ -195,7 +196,7 @@ function ProductTable({
                 <td className="py-2 pr-4">
                   <span className="flex items-center gap-2 font-medium">
                     <span className="h-2.5 w-2.5 rounded-sm" style={{ background: productColors.get(p.id) }} />
-                    {p.name}
+                    {productName(dataset, p)}
                   </span>
                 </td>
                 <td className="tabular py-2 pr-4 text-right text-muted">

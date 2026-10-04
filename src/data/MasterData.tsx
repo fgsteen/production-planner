@@ -1,13 +1,15 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { effectiveRate, unitsPerPallet } from '../model/capacity';
+import { combinationName, productNames } from '../model/products';
 import type { Dataset, Machine, StorageAccepts, StorageLocation } from '../model/types';
-import { exportJson, parseDataset } from '../store/dataset';
+import { MAX_VARIANTS, exportJson, parseDataset } from '../store/dataset';
 import { useDataset } from '../store/DatasetContext';
 import { CheckboxCell, MonthDayListCell, NumberCell, RemoveButton, SelectCell, TextCell, WeekdaysCell } from '../ui/cells';
 import { fmt, productColor, siteColor } from '../ui/palette';
 
 const TABS = [
   ['machines', 'Machines'],
+  ['characteristics', 'Characteristics'],
   ['products', 'Products'],
   ['capabilities', 'Capabilities'],
   ['sites', 'Sites & logistics'],
@@ -38,6 +40,7 @@ export function MasterData() {
           ))}
         </nav>
         {tab === 'machines' && <MachinesTable />}
+        {tab === 'characteristics' && <CharacteristicsEditor />}
         {tab === 'products' && <ProductsTable />}
         {tab === 'capabilities' && <CapabilitiesTable />}
         {tab === 'sites' && <SitesAndLogistics />}
@@ -225,12 +228,70 @@ function MachinesTable() {
   );
 }
 
+function CharacteristicsEditor() {
+  const { dataset, dispatch } = useDataset();
+  const uses = (charId: string, variantId: string) => dataset.products.filter((p) => p.variants[charId] === variantId).length;
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted">
+        Every product is one combination of a variant per characteristic, named <span className="tabular">X-Y-Z</span> unless it has a custom name. Up to{' '}
+        {MAX_VARIANTS} variants each; a variant in use can't be removed.
+      </p>
+      <div className="grid gap-4 md:grid-cols-3">
+        {dataset.characteristics.map((c) => (
+          <div key={c.id} data-testid={`characteristic-${c.id}`} className="rounded-xl border border-line p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs text-faint">{c.id}</span>
+              <span className="flex-1 font-medium">
+                <TextCell label={`${c.id} name`} value={c.name} onCommit={(name) => dispatch({ type: 'renameCharacteristic', id: c.id, name })} />
+              </span>
+            </div>
+            <ul className="space-y-0.5">
+              {c.variants.map((v) => {
+                const n = uses(c.id, v.id);
+                return (
+                  <li key={v.id} className="flex items-center gap-2 text-sm">
+                    <span className="flex-1">
+                      <TextCell
+                        label={`${c.id} variant ${v.id}`}
+                        value={v.name}
+                        onCommit={(name) => dispatch({ type: 'renameVariant', characteristicId: c.id, variantId: v.id, name })}
+                      />
+                    </span>
+                    <span className="tabular w-20 text-right text-xs text-muted">
+                      {n} {n === 1 ? 'product' : 'products'}
+                    </span>
+                    {n === 0 ? (
+                      <RemoveButton label={`Remove ${c.id} variant ${v.id}`} onClick={() => dispatch({ type: 'removeVariant', characteristicId: c.id, variantId: v.id })} />
+                    ) : (
+                      <span className="w-7" />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              className={`${BUTTON} mt-2`}
+              disabled={c.variants.length >= MAX_VARIANTS}
+              onClick={() => dispatch({ type: 'addVariant', characteristicId: c.id })}
+            >
+              + Variant
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProductsTable() {
   const { dataset, dispatch } = useDataset();
+  const names = productNames(dataset);
+  const chars = dataset.characteristics;
   return (
     <Table
-      head={['ID', 'Name', 'Units / crate', 'Crates / pallet', 'Units / pallet', 'Machines', '']}
-      numeric={[2, 3]}
+      head={['ID', ...chars.map((c) => c.name), 'Name', 'Units / crate', 'Crates / pallet', 'Units / pallet', 'Machines', '']}
+      numeric={[chars.length + 2, chars.length + 3]}
       footer={
         <button className={BUTTON} onClick={() => dispatch({ type: 'addProduct' })}>
           + Product
@@ -247,8 +308,23 @@ function ProductsTable() {
                 {p.id}
               </span>
             </td>
-            <td className="min-w-48">
-              <TextCell label={`${p.id} name`} value={p.name} onCommit={(name) => dispatch({ type: 'updateProduct', id: p.id, patch: { name } })} />
+            {chars.map((c) => (
+              <td key={c.id} className="min-w-20">
+                <SelectCell
+                  label={`${p.id} ${c.name}`}
+                  value={p.variants[c.id] ?? ''}
+                  options={c.variants.map((v) => ({ value: v.id, label: v.name }))}
+                  onChange={(variantId) => dispatch({ type: 'updateProduct', id: p.id, patch: { variants: { ...p.variants, [c.id]: variantId } } })}
+                />
+              </td>
+            ))}
+            <td className="min-w-40">
+              <TextCell
+                label={`${p.id} name`}
+                value={p.name}
+                placeholder={combinationName(chars, p.variants)}
+                onCommit={(name) => dispatch({ type: 'updateProduct', id: p.id, patch: { name } })}
+              />
             </td>
             <td>
               <NumberCell
@@ -271,7 +347,7 @@ function ProductsTable() {
                 label={`Remove ${p.id}`}
                 onClick={() => {
                   const n = machines.length;
-                  if (confirm(`Remove ${p.name}${n ? ` and its ${n} capabilities` : ''}?`)) dispatch({ type: 'removeProduct', id: p.id });
+                  if (confirm(`Remove ${names.get(p.id)}${n ? ` and its ${n} capabilities` : ''}?`)) dispatch({ type: 'removeProduct', id: p.id });
                 }}
               />
             </td>
@@ -285,7 +361,7 @@ function ProductsTable() {
 function CapabilitiesTable() {
   const { dataset, dispatch } = useDataset();
   const productIndex = new Map(dataset.products.map((p, i) => [p.id, i]));
-  const productName = new Map(dataset.products.map((p) => [p.id, p.name]));
+  const productName = productNames(dataset);
   const machineIndex = new Map(dataset.machines.map((m, i) => [m.id, i]));
   const machineById = new Map(dataset.machines.map((m) => [m.id, m]));
   const rows = [...dataset.capabilities].sort(
@@ -335,6 +411,7 @@ function AddCapability() {
   const { dataset, dispatch } = useDataset();
   const [machineId, setMachineId] = useState(dataset.machines[0]?.id ?? '');
   const [productId, setProductId] = useState('');
+  const names = productNames(dataset);
   const free = dataset.products.filter((p) => !dataset.capabilities.some((c) => c.machineId === machineId && c.productId === p.id));
   const chosen = free.some((p) => p.id === productId) ? productId : (free[0]?.id ?? '');
   if (dataset.machines.length === 0) return null;
@@ -347,7 +424,7 @@ function AddCapability() {
       <span className="text-faint">can make</span>
       <span className="w-48">
         {free.length > 0 ? (
-          <SelectCell label="New capability product" value={chosen} options={free.map((p) => ({ value: p.id, label: p.name }))} onChange={setProductId} />
+          <SelectCell label="New capability product" value={chosen} options={free.map((p) => ({ value: p.id, label: names.get(p.id)! }))} onChange={setProductId} />
         ) : (
           <span className="px-2 text-faint">every product already</span>
         )}
@@ -487,6 +564,7 @@ function InitialStockTable() {
   const { dataset, dispatch } = useDataset();
   const units = new Map(dataset.initialStock.map((s) => [`${s.locationId}/${s.productId}`, s.units]));
   const locations = dataset.storageLocations;
+  const names = productNames(dataset);
   const pallets = (locationId: string) =>
     dataset.products.reduce((a, p) => a + (units.get(`${locationId}/${p.id}`) ?? 0) / unitsPerPallet(p), 0);
   return (
@@ -498,9 +576,9 @@ function InitialStockTable() {
         {dataset.products.map((p, i) => (
           <tr key={p.id} data-testid={`stock-row-${p.id}`}>
             <td className="tabular whitespace-nowrap px-2 font-medium">
-              <span className="flex items-center gap-2" title={p.name}>
+              <span className="flex items-center gap-2" title={p.id}>
                 <Dot color={productColor(i)} />
-                {p.id}
+                {names.get(p.id)}
               </span>
             </td>
             {locations.map((l) => (
