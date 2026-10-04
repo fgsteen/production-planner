@@ -5,7 +5,12 @@ import { STORAGE_KEY, datasetReducer, exportJson, loadDataset, nextId, parseData
 
 const memoryStorage = () => {
   const data = new Map<string, string>();
-  return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), data };
+  return {
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => void data.set(k, v),
+    removeItem: (k: string) => void data.delete(k),
+    data,
+  };
 };
 
 describe('datasetReducer', () => {
@@ -73,6 +78,8 @@ describe('JSON round trip', () => {
   });
 });
 
+const edited = () => datasetReducer(seedDataset, { type: 'updateProduct', id: 'P01', patch: { name: 'x' } });
+
 describe('persistence', () => {
   it('falls back to the seed, then loads what was saved', () => {
     const storage = memoryStorage();
@@ -80,6 +87,8 @@ describe('persistence', () => {
     const edited = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P02', patch: { cratesPerPallet: 10 } });
     saveDataset(storage, edited);
     expect(loadDataset(storage)).toEqual(edited);
+    saveDataset(storage, datasetReducer(edited, { type: 'reset' }));
+    expect(storage.data.has(STORAGE_KEY)).toBe(false);
   });
 
   it('ignores corrupt saved data and blocked storage', () => {
@@ -88,6 +97,6 @@ describe('persistence', () => {
     expect(loadDataset(storage)).toBe(seedDataset);
     const throwing = { getItem: () => { throw new Error('blocked'); } };
     expect(loadDataset(throwing)).toBe(seedDataset);
-    expect(() => saveDataset({ setItem: () => { throw new Error('quota'); } }, seedDataset)).not.toThrow();
+    expect(() => saveDataset({ setItem: () => { throw new Error('quota'); }, removeItem: () => {} }, edited())).not.toThrow();
   });
 });

@@ -127,7 +127,8 @@ function MachineCard({ machine, site, dataset, productColors, maxRate, focus }: 
       </p>
       <ul className="mt-3 space-y-2.5">
         {caps.map((c) => {
-          const product = dataset.products.find((p) => p.id === c.productId)!;
+          const product = dataset.products.find((p) => p.id === c.productId);
+          if (!product) return null; // dangling reference in imported data; validation reports it
           const color = productColors.get(c.productId)!;
           const eff = effectiveRate(c);
           return (

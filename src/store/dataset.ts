@@ -132,9 +132,11 @@ export function loadDataset(storage: Pick<Storage, 'getItem'> | undefined): Data
   return seedDataset;
 }
 
-export function saveDataset(storage: Pick<Storage, 'setItem'> | undefined, ds: Dataset): void {
+/** Saves the dataset; the untouched demo seed is not stored, so the app keeps tracking seed updates. */
+export function saveDataset(storage: Pick<Storage, 'setItem' | 'removeItem'> | undefined, ds: Dataset): void {
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(ds));
+    if (ds === seedDataset) storage?.removeItem(STORAGE_KEY);
+    else storage?.setItem(STORAGE_KEY, JSON.stringify(ds));
   } catch {
     // Quota or blocked storage: editing still works in memory.
   }
