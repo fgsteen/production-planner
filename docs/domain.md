@@ -31,7 +31,7 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 | **Site** | Geographical location (B, A). | name, is demand site, holidays (list of whole-day dates) |
 | **StorageLocation** | Pallet storage at a site. | name, site, capacity (pallets), accepts (goods produced locally / goods arriving by truck) |
 | **TruckLane** | Transport B → A. | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
-| **Settings** | Global planning settings. | max campaign length (shifts), shift length, shifts per day |
+| **Settings** | Global planning settings. | planning year, max campaign length (shifts), shift length |
 | **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (list of whole-day dates) |
 | **Product** | A semi-finished good. | name, units per crate, crates per pallet |
 | **Capability** | Machine *can produce* product. Many-to-many. Some products are possible at both sites, some at only one. | machine, product, rate (units/h), OEE (%) |

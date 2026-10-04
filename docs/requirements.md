@@ -1,23 +1,25 @@
 # Requirements
 
-Priority: **M** must · **S** should · **C** could. Status: idea → agreed → building → done. _building_ on master data = in the model and seed, no editing UI yet.
+Priority: **M** must · **S** should · **C** could. Status: idea → agreed → building → done.
 Terms: see the glossary in [domain.md](domain.md).
 
 ## Master data
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
-| R1 | Register sites: B (production only) and A (production + demand). | M | building | S01 |
-| R2 | Register machines, each belonging to one site, with shift calendar (default 3 shifts × 7 days). | M | building | S01 |
-| R3 | Register semi-finished goods (products). | M | building | S01 |
-| R4 | Define per machine which products it can produce, with rate (units/h) and OEE per machine–product pair. | M | building | S01 |
-| R5 | Define small and large line clear time per machine. | M | building | S01 |
+| R1 | Register sites: B (production only) and A (production + demand). | M | done | S01 |
+| R2 | Register machines, each belonging to one site, with shift calendar (default 3 shifts × 7 days). | M | done | S01 |
+| R3 | Register semi-finished goods (products). | M | done | S01 |
+| R4 | Define per machine which products it can produce, with rate (units/h) and OEE per machine–product pair. | M | done | S01 |
+| R5 | Define small and large line clear time per machine. | M | done | S01 |
 | R7 | Seed the app with generic demo data (sites B and A, a set of machines and products, overlapping capabilities). | M | done | S01 |
-| R6 | Packaging per product: units per crate, crates per pallet. | M | building | S01 |
-| R8 | Export/import the whole dataset as JSON (scenarios). | S | agreed | S01 |
-| R9 | Configurable holidays (per site) and planned maintenance (per machine), as lists of whole-day dates. They reduce available shifts. | M | building | S01 |
-| R11 | Storage locations with capacity in total pallets: A in-factory (A-produced only), A warehouse (from B), B warehouse. | M | building | S01 |
-| R12 | Trucks B → A: max trucks per week, size in pallets (default 30), toggle for running on weekends/holidays. Default 5 trucks/week. | M | building | S01 |
-| R13 | Global max campaign length in shifts. | M | building | S01 |
+| R6 | Packaging per product: units per crate, crates per pallet. | M | done | S01 |
+| R8 | Export/import the whole dataset as JSON (scenarios). | S | done | S01 |
+| R9 | Configurable holidays (per site) and planned maintenance (per machine), as lists of whole-day dates. They reduce available shifts. | M | done | S01 |
+| R11 | Storage locations with capacity in total pallets: A in-factory (A-produced only), A warehouse (from B), B warehouse. | M | done | S01 |
+| R12 | Trucks B → A: max trucks per week, size in pallets (default 30), toggle for running on weekends/holidays. Default 5 trucks/week. | M | done | S01 |
+| R13 | Global max campaign length in shifts. | M | done | S01 |
+| R14 | Edit all master data in the app (inline tables), saved in the browser; reset to demo data. | M | done | S03 |
+| R15 | Planning year setting (the plan covers 1 Jan – 31 Dec of that year). | M | done | S03 |
 
 ## Overview
 | ID | Requirement | Prio | Status | Source |
@@ -56,8 +58,8 @@ Terms: see the glossary in [domain.md](domain.md).
 ## Hosting
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
-| R40 | Reachable by URL from any browser, with nothing to install. Hosted on GitHub Pages (public repo is fine: placeholder data only). | M | agreed | S01 |
-| R41 | Auto-deploy on push to `main` (GitHub Actions). | S | agreed | S01 |
+| R40 | Reachable by URL from any browser, with nothing to install. Hosted on GitHub Pages (public repo is fine: placeholder data only). | M | done | S01 |
+| R41 | Auto-deploy on push to `main` (GitHub Actions). | S | done | S01 |
 
 ## About
 | ID | Requirement | Prio | Status | Source |

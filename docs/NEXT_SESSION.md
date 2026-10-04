@@ -1,55 +1,49 @@
 # Next session
 
-_Written at the end of S02 (2026-10-04)._
+_Written at the end of S03 (2026-10-04)._
 
 ## Where we are
-- The app runs locally (`npm run dev`, http://localhost:5173). See "Run locally" in
-  [docs/README.md](README.md).
-- Model, validation and seed data are in `src/model/`. The overview screen (R10) shows:
-  - stat tiles;
-  - a B → A network map (React Flow);
-  - machine cards per site;
-  - a product table with hover highlight.
-- `npm test` is green: tooling, typecheck, Vitest (13) and Playwright (5).
-- The app always uses the built-in seed. There's no persistence or editing yet.
-- **No deploy yet.** After S02 the user confirmed hosting on **GitHub Pages** from a public repo
-  ([ADR 0002](decisions/0002-stack.md)).
-- A single-file build (one `index.html`, opens from disk) was tested and works. The user set it
-  aside for now.
+- **Live:** https://fgsteen.github.io/production-planner/. It redeploys on every push to `main`
+  (`.github/workflows/pages.yml`).
+- **Master data is fully editable** on the "Master data" page (`#data`), with five tabs: Machines,
+  Products, Capabilities, Sites & logistics, Settings.
+  - Edits are saved to localStorage and validated live (problems banner + nav badge).
+  - Export/import as JSON; reset to demo data.
+- Store: `src/store/` (pure reducer + context). Edit cells: `src/ui/cells.tsx`.
+- `settings.planningYear` (default 2027) drives the overview's available shifts.
+- An `ErrorBoundary` lets the user recover from saved data that crashes rendering.
+- `npm test` is green: 5 tooling tests, typecheck, 32 unit tests and 14 e2e tests.
 
-## Proposed goal for S03
-**Deploy to GitHub Pages, then master data editing + persistence + JSON export/import**
-(R40, R41; R1–R6, R8, R9, R11–R13 → done).
+## Proposed goal for S04
+**Demand input + capacity check + first HiGHS plan (no line clears yet).**
+Covers R20 and R26, the start of R21, and R35.
 
 ### First steps
-1. **Deploy first (~10 min):**
-   - confirm the repo name with the user (`fgsteen/production-planner`, **public**). Creating it
-     publishes the code;
-   - `gh repo create`, push;
-   - add a GitHub Actions workflow (`npm ci`, `npm run build`, deploy `dist/` to Pages);
-   - verify the live URL in the browser pane.
-2. Ask the user:
-   - Editing UX: inline-editable tables per entity (fast, spreadsheet-like), or a form/drawer per item?
-   - Should "reset to demo data" be available? Recommend yes.
-3. Add a dataset store with React context and a reducer, persisted to localStorage. Run
-   `validateDataset` on every change and show the errors.
-4. Add editing screens: sites (holidays), storage, trucks, machines (line clears, calendar,
-   maintenance), products (packaging), capabilities (rate, OEE), settings.
-5. Add JSON export/import (download/upload), with validation on import.
-6. Add a planning year to settings. The overview hard-codes 2027 in `src/overview/Overview.tsx`.
-7. Tests:
-   - unit tests for the reducer and the JSON round trip;
-   - Playwright: edit a capability, see the overview update, reload and check it persists.
+1. Ask the user:
+   - Demand entry: yearly total per product with an optional monthly split (12 columns), or
+     monthly only?
+   - Demand units: units, crates or pallets?
+   - The two open questions in [open-questions.md](open-questions.md): holidays vs planning year,
+     and a fixed B/A network.
+2. Add `demand` to `Dataset` (per product per month), with editing on a new "Demand" page and
+   validation. Old JSON files without `demand` get an empty default in `parseDataset`.
+3. Capacity check, before any solver: per product, demand vs the max output of its capable
+   machines; per machine, the load if spread evenly. Flag demand that can't be met (R35).
+4. Spike HiGHS in the browser (`highs` npm package, WASM):
+   - a tiny LP (product × machine × month shifts, capacity per machine-month, meet demand);
+   - run it in a Web Worker;
+   - write ADR 0003 (planning engine) as accepted, or amend it.
+5. Tests: unit tests for the capacity check and the LP builder (tiny instance, known optimum);
+   e2e: enter demand, see the plan summary.
 
 ### Done when
-- The app is live at `https://fgsteen.github.io/<repo>/` and redeploys on push to `main`.
-- The user can change any master data, reload and keep it, and export/import a JSON scenario.
+- The user can enter demand and see which products/months are infeasible.
+- A first LP plan (shifts per product per machine per month) is computed in the browser and shown
+  as a simple table.
 - `npm test` is green.
 
 ## Later sessions (rough order)
-- S04: demand input (yearly + per month) and the capacity model. First HiGHS plan, without line
-  clears. About page v1 (R50).
-- S05: line clears, storage, transport, priority weights (R22, R26–R28). Accept ADR 0003.
-- S06: plan visualisation (R30–R37): Sankey, utilisation heatmap, line clear time, stock vs
-  storage.
-- S07: shift-level timeline (R34).
+- S05: line clears, storage, transport, priority weights (R22, R26–R29, R19). About page v1 (R50).
+- S06: plan visualisation (R30–R33, R37–R39): Sankey, utilisation heatmap, line clear time, stock
+  vs storage, trucks.
+- S07: shift-level timeline (R34); compare plans (R25).
