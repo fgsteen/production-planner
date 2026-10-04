@@ -7,7 +7,9 @@ Documentation lives in Markdown under `docs/`. Start here: [docs/README.md](docs
 
 **Start of session**
 1. Read `docs/NEXT_SESSION.md` (the handoff from last session) and skim `docs/open-questions.md`.
-2. Propose the session goal to the user — one goal, sized for ~1 hour — and agree on it.
+2. Present the session plan before any work: the goal (one, sized for ~1 hour), what's in and
+   out of scope, the first steps, and the pending questions. Ask the user what they want to add
+   to the todo list, for this session or later. Agree on it.
 3. Run `npm run session:start -- "<goal>"`. This creates `docs/sessions/SNN.md` and a start commit
    whose timestamp is the official start time.
 

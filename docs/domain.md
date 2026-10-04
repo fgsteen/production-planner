@@ -63,7 +63,8 @@ Line clear times don't depend on the product for now; they are set per machine.
 - **Demand** per product, in **units**: a yearly total, spread over the ISO weeks of the
   planning year in proportion to the days A is open (not a holiday), so holiday weeks get less (S05). Chosen weeks can be **pinned** to a quantity; the rest of the total spreads over
   the other weeks (S04, [ADR 0004](decisions/0004-weekly-demand-iso-weeks.md)). Demand is what A
-  consumes that week; it isn't even through the year.
+  consumes that week; it isn't even through the year. A consumes **seven days a week**, weekends
+  included (user, S09).
 - **Time grid:** ISO 8601 weeks (as in Sweden). The planning year runs from Monday of week 1 to
   Sunday of week 52/53.
 - Producing earlier is fine. The only limit on producing ahead is **storage space**.
@@ -88,7 +89,10 @@ limit is the bottleneck (R39).
     five-day week and drops with weekday holidays at either site, e.g. 10 → 8 in Midsummer week
     (weekly cap, not per-day trucks; S05, [ADR 0005](decisions/0005-storage-pools-and-weekly-trucks.md));
   - the **demo data** uses 10 trucks/week: its B-only products need about 7.4.
-- Pallets per product = units ÷ (units per crate × crates per pallet).
+- Pallets per product = units ÷ (units per crate × crates per pallet). **Fractional pallets** are
+  fine: part-full pallets may be shipped and stored (user, S09).
+- **No transit time:** goods shipped arrive in the same week. Transit time may be modelled much
+  later (user, S09).
 
 ```
 B machines → B warehouse ──truck (≤ freq/week × 30 pallets)──▶ A warehouse  ─┐
@@ -99,7 +103,8 @@ A machines ───────────────────────
 [ADR 0007](decisions/0007-line-clear-milp-and-warm-start.md)):
 - regular products (X-Y-Z) flagged pre-SFG, made on the same machines, at A or B;
 - an SFG may use one pre-SFG, **1:1**, consumed in the **same week** where the SFG is made
-  (only B in the demo). Pre-SFGs have no demand of their own;
+  (only B in the demo). An SFG that uses a pre-SFG is **made only at B** (user, S09).
+  Pre-SFGs have no demand of their own;
 - those made at A travel **A → B** on a separate truck lane with its own limits, into the B
   warehouse (shared with B's own output);
 - quantities are much smaller than the SFGs' (demo: 2 pre-SFGs, about 6 % of volume).
