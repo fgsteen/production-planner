@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MasterData } from './data/MasterData';
 import { DemandPage } from './demand/DemandPage';
+import { PlanPage } from './plan/PlanPage';
 import { seedDataset } from './model/seed';
 import { Overview } from './overview/Overview';
 import { DatasetProvider, useDataset } from './store/DatasetContext';
@@ -10,6 +11,7 @@ const PAGES = [
   ['overview', 'Overview'],
   ['data', 'Master data'],
   ['demand', 'Demand'],
+  ['plan', 'Plan'],
 ] as const;
 type Page = (typeof PAGES)[number][0];
 
@@ -62,7 +64,7 @@ function Shell() {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {page === 'data' ? <MasterData /> : page === 'demand' ? <DemandPage /> : <Overview dataset={dataset} />}
+        {page === 'data' ? <MasterData /> : page === 'demand' ? <DemandPage /> : page === 'plan' ? <PlanPage /> : <Overview dataset={dataset} />}
       </main>
     </div>
   );

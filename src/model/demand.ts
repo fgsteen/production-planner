@@ -42,6 +42,8 @@ export interface MachineLoad {
 
 export interface CapacityCheck {
   weeks: number;
+  /** Available hours per machine per week (index 0 = week 1). */
+  machineHours: Map<Id, number[]>;
   products: ProductCheck[];
   machines: MachineLoad[];
 }
@@ -107,5 +109,5 @@ export function checkCapacity(ds: Dataset): CapacityCheck {
     return { machineId: m.id, availableHours, neededHours, loadPct: availableHours > 0 ? (100 * neededHours) / availableHours : neededHours > 0 ? Infinity : 0 };
   });
 
-  return { weeks, products, machines: machineLoads };
+  return { weeks, machineHours: hours, products, machines: machineLoads };
 }
