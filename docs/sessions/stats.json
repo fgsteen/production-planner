@@ -123,5 +123,30 @@
         "calls": 53
       }
     }
+  },
+  {
+    "id": "S06",
+    "goal": "Product characteristics X/Y/Z with editable variants and a ~20-product demo (R17, R18)",
+    "start": "2026-10-04T20:25:45+02:00",
+    "end": "2026-10-04T18:38:38.419Z",
+    "wallMinutes": 13,
+    "activeMinutes": 13,
+    "tokens": {
+      "input": 156,
+      "cacheWrite": 131561,
+      "cacheRead": 10722625,
+      "output": 59021,
+      "calls": 78,
+      "total": 10913363
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 156,
+        "cacheWrite": 131561,
+        "cacheRead": 10722625,
+        "output": 59021,
+        "calls": 78
+      }
+    }
   }
 ]
