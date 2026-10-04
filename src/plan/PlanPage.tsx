@@ -11,6 +11,7 @@ import type { WorkerRequest, WorkerResponse } from './plan.worker';
 import type { SolveStage } from './solve';
 import { Panel } from '../ui/Panel';
 import { GroupBySelect } from '../ui/GroupBy';
+import { BottlenecksPanel } from './Bottlenecks';
 import { UnmetPanel } from './Unmet';
 import { WarehousePanel } from './Warehouse';
 
@@ -229,6 +230,8 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
           </div>
         ))}
       </dl>
+
+      <BottlenecksPanel dataset={dataset} plan={plan} check={check} />
 
       {plan.unmetUnits >= 1 && <UnmetPanel dataset={dataset} plan={plan} check={check} />}
 

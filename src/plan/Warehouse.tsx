@@ -4,6 +4,7 @@ import { productName } from '../model/products';
 import type { Dataset } from '../model/types';
 import { fmt, productColor } from '../ui/palette';
 import { Panel } from '../ui/Panel';
+import { poolName } from './limits';
 import type { PlanResult } from './lp';
 import { Legend, Toggle } from './PlanDetails';
 
@@ -11,13 +12,6 @@ const one = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const fmt1 = (n: number) => one.format(n);
 
 const RED = '#e15759';
-
-/** "B warehouse", or "A warehouse (inbound)" style names for each pool. */
-function poolName(dataset: Dataset, pool: PlanResult['storage'][number]): string {
-  const names = pool.locationIds.map((id) => dataset.storageLocations.find((l) => l.id === id)?.name ?? id);
-  const site = dataset.sites.find((s) => s.id === pool.siteId)?.name ?? pool.siteId;
-  return names.length ? names.join(' + ') : `${site} ${pool.kind} (no storage)`;
-}
 
 export function WarehousePanel({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
   const [view, setView] = useState<'Chart' | 'Table'>('Chart');

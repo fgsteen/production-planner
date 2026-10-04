@@ -20,6 +20,11 @@ test('solves a draft plan for the demo data in the browser', async ({ page }) =>
   const unmet = page.getByTestId('unmet-panel');
   await expect(unmet.getByTestId('unmet-P10')).toContainText('%');
   await expect(page.locator('[data-testid^="full-"]').first()).toContainText('100 %');
+
+  // R39: the top limit is a machine full in most weeks, and it names the short P10.
+  const top = page.getByTestId('bottlenecks-panel').getByTestId('bottleneck-0');
+  await expect(top).toContainText(/Machine A\d\s*full in \d+\/52 weeks/);
+  await expect(top).toContainText('M-1-Hazel');
   await unmet.scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'test-results/screens/plan-unmet.png', fullPage: true });
 });
