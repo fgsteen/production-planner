@@ -1,9 +1,7 @@
 @import 'tailwindcss';
 
-/* Design tokens. Light by default, dark via prefers-color-scheme. `.light-theme` forces light on a
-   subtree (PNG export, R45): it sets the light values on that element, which its children inherit. */
-:root,
-.light-theme {
+/* Design tokens. Light by default, dark via prefers-color-scheme. */
+:root {
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-2: #f1f3f6;

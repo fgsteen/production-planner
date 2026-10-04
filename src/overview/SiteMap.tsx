@@ -1,4 +1,4 @@
-import { Background, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
+import { BaseEdge, Background, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useMemo } from 'react';
 import type { Dataset } from '../model/types';
@@ -58,9 +58,30 @@ function StoreNode({ data }: NodeProps<Node<StoreData>>) {
         {data.capacity} pallets · {data.accepts}
       </div>
       <Handle type="source" position={Position.Right} className="!opacity-0" />
+      <Handle id="bottom-in" type="target" position={Position.Bottom} className="!opacity-0" />
+      <Handle id="bottom-out" type="source" position={Position.Bottom} className="!opacity-0" />
     </div>
   );
 }
+
+type UnderData = { y: number };
+
+/** A lane running right to left: down from its store, along `y` (below the machines), up into the target store. */
+function UnderEdge({ sourceX, sourceY, targetX, targetY, data, ...props }: EdgeProps<Edge<UnderData>>) {
+  const y = data!.y;
+  const r = 8;
+  const path = [
+    `M ${sourceX} ${sourceY}`,
+    `L ${sourceX} ${y - r}`,
+    `Q ${sourceX} ${y} ${sourceX - r} ${y}`,
+    `L ${targetX + r} ${y}`,
+    `Q ${targetX} ${y} ${targetX} ${y - r}`,
+    `L ${targetX} ${targetY}`,
+  ].join(' ');
+  return <BaseEdge {...props} path={path} labelX={(sourceX + targetX) / 2} labelY={y} />;
+}
+
+const edgeTypes = { under: UnderEdge };
 
 function SinkNode({ data }: NodeProps<Node<SinkData>>) {
   return (
@@ -72,6 +93,8 @@ function SinkNode({ data }: NodeProps<Node<SinkData>>) {
 }
 
 const nodeTypes = { site: SiteNode, machine: MachineNode, store: StoreNode, sink: SinkNode };
+/** Free strip at the bottom of each site box, for lanes running right to left. */
+const UNDER = 36;
 
 export function buildGraph(ds: Dataset, productColors: Map<string, string>): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
@@ -80,7 +103,8 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
   const machinesOf = (siteId: string) => ds.machines.filter((m) => m.siteId === siteId);
   const tallest = Math.max(...ds.sites.map((s) => machinesOf(s.id).length));
   // Leave one extra row at the top of the demand site for the inbound warehouse.
-  const siteH = HEADER + (tallest + 1) * ROW + PAD;
+  const siteH = HEADER + (tallest + 1) * ROW + PAD + UNDER;
+  const siteIndex = new Map(ds.sites.map((s, i) => [s.id, i]));
 
   ds.sites.forEach((site, i) => {
     const x = i * (siteW + SITE_GAP);
@@ -137,13 +161,15 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
       ds.storageLocations.find((l) => l.siteId === lane.toSiteId && l.accepts === 'inbound') ??
       ds.storageLocations.find((l) => l.siteId === lane.toSiteId && l.accepts === 'local');
     if (from && to) {
+      // Lanes against the layout's direction run under the machines instead of across them.
+      const under = siteIndex.get(lane.fromSiteId)! > siteIndex.get(lane.toSiteId)!;
       edges.push({
         id: `e-truck-${lane.id}`,
         source: `store-${from.id}`,
         target: `store-${to.id}`,
         animated: true,
         zIndex: 10,
-        ...(!toDemand && { type: 'smoothstep' }),
+        ...(under ? { type: 'under', sourceHandle: 'bottom-out', targetHandle: 'bottom-in', data: { y: siteH - UNDER / 2 - 4 } } : !toDemand && { type: 'smoothstep' }),
         label: `🚚 ${toDemand ? '' : 'pre-SFGs '}≤ ${lane.maxTrucksPerWeek} trucks/wk × ${lane.palletsPerTruck} pallets`,
         labelBgPadding: [8, 4],
         labelBgBorderRadius: 6,
@@ -182,12 +208,19 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
 
 export function SiteMap({ dataset, productColors }: { dataset: Dataset; productColors: Map<string, string> }) {
   const { nodes, edges } = useMemo(() => buildGraph(dataset, productColors), [dataset, productColors]);
+  // The box takes the graph's aspect ratio, so fitView fills it whatever the number of machines.
+  const aspect = useMemo(() => {
+    const right = Math.max(...nodes.filter((n) => !n.parentId).map((n) => n.position.x + Number(n.style?.width ?? 0)));
+    const bottom = Math.max(...nodes.filter((n) => !n.parentId).map((n) => n.position.y + Number(n.style?.height ?? 0)));
+    return `${right} / ${bottom}`;
+  }, [nodes]);
   return (
-    <div className="aspect-[3/1] max-h-[440px] min-h-[220px] w-full" data-testid="site-map">
+    <div className="max-h-[480px] min-h-[220px] w-full" style={{ aspectRatio: aspect }} data-testid="site-map">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         colorMode="system"
         fitView
         minZoom={0.1}

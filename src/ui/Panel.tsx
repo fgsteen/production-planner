@@ -7,18 +7,20 @@ const CARD = 'rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rg
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /**
- * Renders `node` to a PNG at 2× in the light theme, with scroll areas expanded so wide or long
- * tables come out whole. Elements marked `data-export-ignore` (the panel's controls) are left out.
+ * Renders `node` to a PNG at 2× in the page's current theme, on the panel's own background, with
+ * scroll areas expanded so wide or long tables come out whole. Elements marked `data-export-ignore`
+ * (the panel's controls) are left out.
  */
 export async function downloadPng(node: HTMLElement, name: string): Promise<void> {
   const width = node.offsetWidth;
-  node.classList.add('light-theme', 'png-export');
+  node.classList.add('png-export');
   node.style.minWidth = `${width}px`;
   try {
     // One frame, so the expanded layout is in place before measuring.
     await new Promise((r) => requestAnimationFrame(r));
     const url = await toPng(node, {
       pixelRatio: 2,
+      backgroundColor: getComputedStyle(node).backgroundColor,
       width: node.scrollWidth,
       height: node.scrollHeight,
       filter: (el) => !(el instanceof HTMLElement && el.dataset.exportIgnore !== undefined),
@@ -26,7 +28,7 @@ export async function downloadPng(node: HTMLElement, name: string): Promise<void
     const a = Object.assign(document.createElement('a'), { href: url, download: `${slug(name)}-${new Date().toISOString().slice(0, 10)}.png` });
     a.click();
   } finally {
-    node.classList.remove('light-theme', 'png-export');
+    node.classList.remove('png-export');
     node.style.minWidth = '';
   }
 }

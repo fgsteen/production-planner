@@ -27,7 +27,7 @@ async function inspectPng(page: Page) {
 test.describe('PNG download per panel (R45)', () => {
   test.use({ colorScheme: 'dark' });
 
-  test('downloads a panel at 2×, in the light theme, with its wide table whole', async ({ page }) => {
+  test('downloads a panel at 2×, in the page theme, with its wide table whole', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 }); // narrow enough for the 20-product table to scroll
     await recordDownloads(page);
     await page.goto('/#plan');
@@ -47,10 +47,11 @@ test.describe('PNG download per panel (R45)', () => {
     const table = await page.getByTestId('plan-table').evaluate((t) => t.parentElement!.scrollWidth);
     expect(table).toBeGreaterThan(shown.width);
     expect(png.width).toBeGreaterThanOrEqual(2 * table);
-    // Light, opaque background although the page is dark.
-    expect(png.pixel.every((c) => c > 240)).toBe(true);
+    // Dark like the page, and opaque.
+    expect(png.pixel.slice(0, 3).every((c) => c < 60)).toBe(true);
+    expect(png.pixel[3]).toBe(255);
     // The page itself is back to normal.
-    await expect(panel).not.toHaveClass(/light-theme|png-export/);
+    await expect(panel).not.toHaveClass(/png-export/);
   });
 
   test('every chart and table panel has a download button', async ({ page }) => {
@@ -67,5 +68,17 @@ test.describe('PNG download per panel (R45)', () => {
     await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
     await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(6); // priorities, shifts, weekly plan, warehouses, transport B → A and A → B
     await save('Weekly machine plan');
+  });
+});
+
+test.describe('PNG download in the light theme (R45)', () => {
+  test.use({ colorScheme: 'light' });
+
+  test('a light page gives a light PNG', async ({ page }) => {
+    await recordDownloads(page);
+    await page.goto('/#');
+    await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download Network as PNG' }).click()]);
+    const png = await inspectPng(page);
+    expect(png.pixel.every((c) => c > 240)).toBe(true);
   });
 });
