@@ -66,7 +66,7 @@ test.describe('PNG download per panel (R45)', () => {
     await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(3);
     await page.goto('/#plan');
     await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(6); // priorities, shifts, weekly plan, warehouses, transport B → A and A → B
+    await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(8); // priorities, what limits the plan, shifts, line clears, weekly plan, warehouses, transport B → A and A → B
     await save('Weekly machine plan');
   });
 });
