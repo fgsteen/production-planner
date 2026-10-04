@@ -36,3 +36,26 @@ export function firstFreeCombination(characteristics: Characteristic[], products
   for (const combo of combinations(characteristics)) if (!taken.has(combinationKey(characteristics, combo))) return combo;
   return null;
 }
+
+/** A column or row of a grouped view (R44): one product, or all products sharing a variant. */
+export interface ProductGroup {
+  key: Id;
+  label: string;
+  productIds: Id[];
+  /** Index for the colour: the product's, or the variant's within its characteristic. */
+  colorIndex: number;
+}
+
+/**
+ * Groups `products` by the variant of characteristic `by`; `null` gives one group per product.
+ * Groups follow the variant order and skip variants no product uses.
+ */
+export function groupProducts(ds: Pick<Dataset, 'characteristics' | 'products'>, products: Product[], by: Id | null): ProductGroup[] {
+  const index = new Map(ds.products.map((p, i) => [p.id, i]));
+  const c = by ? ds.characteristics.find((x) => x.id === by) : undefined;
+  if (!c) return products.map((p) => ({ key: p.id, label: productName(ds, p), productIds: [p.id], colorIndex: index.get(p.id) ?? 0 }));
+  return c.variants.flatMap((v, i) => {
+    const ids = products.filter((p) => p.variants[c.id] === v.id).map((p) => p.id);
+    return ids.length ? [{ key: v.id, label: `${c.name} ${v.name}`, productIds: ids, colorIndex: i }] : [];
+  });
+}

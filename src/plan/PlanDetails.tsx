@@ -10,7 +10,7 @@ import { Panel } from '../ui/Panel';
 const one = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const fmt1 = (n: number) => one.format(n);
 
-function Toggle<T extends string>({ value, options, onChange, label }: { value: T; options: readonly T[]; onChange: (v: T) => void; label: string }) {
+export function Toggle<T extends string>({ value, options, onChange, label }: { value: T; options: readonly T[]; onChange: (v: T) => void; label: string }) {
   return (
     <div role="group" aria-label={label} className="inline-flex rounded-lg border border-line p-0.5 text-xs">
       {options.map((o) => (
@@ -28,7 +28,7 @@ function Toggle<T extends string>({ value, options, onChange, label }: { value: 
   );
 }
 
-function Legend({ dataset, productIds }: { dataset: Dataset; productIds: Set<Id> }) {
+export function Legend({ dataset, productIds }: { dataset: Dataset; productIds: Set<Id> }) {
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
       {dataset.products.map((p, i) =>

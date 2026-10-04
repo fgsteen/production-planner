@@ -288,9 +288,10 @@ function ProductsTable() {
   const { dataset, dispatch } = useDataset();
   const names = productNames(dataset);
   const chars = dataset.characteristics;
+  const preSmgs = dataset.products.filter((p) => p.isPreSmg);
   return (
     <Table
-      head={['ID', ...chars.map((c) => c.name), 'Name', 'Units / crate', 'Crates / pallet', 'Units / pallet', 'Machines', '']}
+      head={['ID', ...chars.map((c) => c.name), 'Name', 'Units / crate', 'Crates / pallet', 'Units / pallet', 'Pre-SMG', 'Uses pre-SMG', 'Machines', '']}
       numeric={[chars.length + 2, chars.length + 3]}
       footer={
         <button className={BUTTON} onClick={() => dispatch({ type: 'addProduct' })}>
@@ -341,6 +342,25 @@ function ProductsTable() {
               />
             </td>
             <td className="tabular px-2 text-right text-muted">{fmt(unitsPerPallet(p))}</td>
+            <td>
+              <CheckboxCell
+                label={`${p.id} is a pre-SMG`}
+                checked={!!p.isPreSmg}
+                onChange={(isPreSmg) => dispatch({ type: 'updateProduct', id: p.id, patch: { isPreSmg, ...(isPreSmg && { preSmgId: undefined }) } })}
+              />
+            </td>
+            <td className="min-w-28">
+              {p.isPreSmg ? (
+                <span className="px-2 text-faint">—</span>
+              ) : (
+                <SelectCell
+                  label={`${p.id} uses pre-SMG`}
+                  value={p.preSmgId ?? ''}
+                  options={[{ value: '', label: 'none' }, ...preSmgs.map((q) => ({ value: q.id, label: names.get(q.id)! }))]}
+                  onChange={(preSmgId) => dispatch({ type: 'updateProduct', id: p.id, patch: { preSmgId: preSmgId || undefined } })}
+                />
+              )}
+            </td>
             <td className="tabular px-2 text-muted">{machines.length ? machines.join(', ') : <span className="text-[#e15759]">none</span>}</td>
             <td>
               <RemoveButton

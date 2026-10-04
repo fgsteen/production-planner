@@ -76,7 +76,6 @@ const nodeTypes = { site: SiteNode, machine: MachineNode, store: StoreNode, sink
 export function buildGraph(ds: Dataset, productColors: Map<string, string>): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-  const lane = ds.truckLanes[0];
   const siteW = PAD + MACHINE_W + 64 + STORE_W + PAD;
   const machinesOf = (siteId: string) => ds.machines.filter((m) => m.siteId === siteId);
   const tallest = Math.max(...ds.sites.map((s) => machinesOf(s.id).length));
@@ -130,17 +129,22 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
     }
   });
 
-  if (lane) {
+  for (const lane of ds.truckLanes) {
+    // Trucked goods arrive in the inbound store, or the local one if the site has none (pre-SMGs at B).
+    const toDemand = ds.sites.find((s) => s.id === lane.toSiteId)?.isDemandSite;
     const from = ds.storageLocations.find((l) => l.siteId === lane.fromSiteId && l.accepts === 'local');
-    const to = ds.storageLocations.find((l) => l.siteId === lane.toSiteId && l.accepts === 'inbound');
+    const to =
+      ds.storageLocations.find((l) => l.siteId === lane.toSiteId && l.accepts === 'inbound') ??
+      ds.storageLocations.find((l) => l.siteId === lane.toSiteId && l.accepts === 'local');
     if (from && to) {
       edges.push({
-        id: 'e-truck',
+        id: `e-truck-${lane.id}`,
         source: `store-${from.id}`,
         target: `store-${to.id}`,
         animated: true,
         zIndex: 10,
-        label: `🚚 ≤ ${lane.maxTrucksPerWeek} trucks/wk × ${lane.palletsPerTruck} pallets`,
+        ...(!toDemand && { type: 'smoothstep' }),
+        label: `🚚 ${toDemand ? '' : 'pre-SMGs '}≤ ${lane.maxTrucksPerWeek} trucks/wk × ${lane.palletsPerTruck} pallets`,
         labelBgPadding: [8, 4],
         labelBgBorderRadius: 6,
         labelStyle: { fontSize: 12, fontWeight: 600, fill: 'var(--text)' },

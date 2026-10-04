@@ -25,7 +25,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
     if (runs.length === 0) {
       const res = mdl.run();
       const ok = res.modelStatus === S.optimal;
-      return { status: ok ? 'Optimal' : `HiGHS status ${res.modelStatus}`, columns: ok ? values(mdl.getSolution().colValue) : {}, gap: 0 };
+      return { status: ok ? 'Optimal' : `HiGHS status ${res.modelStatus}`, columns: ok ? values(Float64Array.from(mdl.getSolution().colValue)) : {}, gap: 0 };
     }
     const sel = { kind: 'set' as const, indices: Int32Array.from(runs) };
     const hoursOf = runs.map((i) => mdl.getColByName(`h_${names[i].slice(2)}`));
@@ -44,8 +44,9 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
     let lastDropped: number[] = [];
     for (let round = 0; round < 8; round++) {
       mdl.changeColsBounds(sel, new Float64Array(runs.length), upper);
+      mdl.clearSolver(); // a warm start from the last basis can take minutes; a fresh solve takes ~1 s
       mdl.run();
-      const sol = mdl.getSolution().colValue;
+      const sol = Float64Array.from(mdl.getSolution().colValue);
       // A round that leaves demand unmet (e.g. no early runs left for a pre-SMG chain) is undone.
       if (unmet(sol) > baseUnmet + 1) {
         for (const k of lastDropped) upper[k] = 1;
@@ -67,11 +68,33 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
       if (lastDropped.length === 0) break;
     }
 
-    // 2. Runs fixed where the relaxation produced: a full plan with every line clear paid for.
-    const fixed = Float64Array.from(hoursOf, (h) => (relaxed[h] > 1e-6 ? 1 : 0));
+    // 2. Runs fixed to 1 where the relaxation produced, so their line clears are paid in full. The
+    //    other allowed runs stay open (continuous), so work can move to them when the paid line
+    //    clears leave too little time (e.g. week 1, which starts without stock); any that get used
+    //    are fixed to 1 in turn. Finally all runs are fixed: the start is a plan with every line
+    //    clear paid for.
+    const lower = Float64Array.from(hoursOf, (h) => (relaxed[h] > 1e-6 ? 1 : 0));
+    let start: Float64Array = new Float64Array();
+    for (let round = 0; round < 6; round++) {
+      mdl.changeColsBounds(sel, lower, upper.map((u, k) => Math.max(u, lower[k])));
+      mdl.clearSolver(); // a warm start from the last basis can take minutes; a fresh solve takes ~1 s
+      mdl.run();
+      start = Float64Array.from(mdl.getSolution().colValue);
+      let opened = 0;
+      hoursOf.forEach((h, k) => {
+        if (lower[k] === 0 && start[h] > 1e-6) {
+          lower[k] = 1;
+          opened++;
+        }
+      });
+      if (opened === 0) break;
+    }
+    // Runs left empty only cost line clear time.
+    const fixed = Float64Array.from(hoursOf, (h, k) => (lower[k] === 1 && start[h] > 1e-6 ? 1 : 0));
     mdl.changeColsBounds(sel, fixed, fixed);
+    mdl.clearSolver();
     mdl.run();
-    const start = mdl.getSolution().colValue;
+    start = Float64Array.from(mdl.getSolution().colValue);
     const startObjective = mdl.getObjectiveValue();
 
     // 3. MIP from that start, over the runs the relaxation kept.
@@ -89,7 +112,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
     const objective = better ? mdl.getObjectiveValue() : startObjective;
     return {
       status: optimal && better ? 'Optimal' : 'Time limit reached',
-      columns: values(better ? mdl.getSolution().colValue : start),
+      columns: values(better ? Float64Array.from(mdl.getSolution().colValue) : start),
       gap: Number.isFinite(bound) && objective > 0 ? Math.max(0, (objective - bound) / objective) : 1,
     };
   });

@@ -1,11 +1,12 @@
-import { useMemo } from 'react';
-import { checkCapacity, type CapacityCheck } from '../model/demand';
+import { useMemo, useState } from 'react';
+import { checkCapacity, type CapacityCheck, type ProductCheck } from '../model/demand';
 import type { Dataset } from '../model/types';
 import { isoWeekRange, isoWeeks } from '../model/weeks';
 import { useDataset } from '../store/DatasetContext';
 import { OptionalNumberCell } from '../ui/cells';
 import { fmt, productColor } from '../ui/palette';
-import { productName } from '../model/products';
+import { groupProducts, productName } from '../model/products';
+import { GroupBySelect } from '../ui/GroupBy';
 import { Panel } from '../ui/Panel';
 
 const RED = '#e15759';
@@ -78,18 +79,26 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
   const year = dataset.settings.planningYear;
   const demandOf = (productId: string) => dataset.demand.find((d) => d.productId === productId);
   const checkOf = new Map(check.products.map((p) => [p.productId, p]));
+  const [groupBy, setGroupBy] = useState<string | null>(null);
+  // Pre-SMGs have no demand of their own: B consumes them (R47).
+  const smgs = dataset.products.filter((p) => !p.isPreSmg);
+  if (groupBy) return <GroupedWeeklyTable dataset={dataset} check={check} groupBy={groupBy} setGroupBy={setGroupBy} />;
 
   return (
-    <Panel title="Weekly demand" hint="Bold = pinned week. Red = more than the product's machines can make that week (needs stock built earlier).">
+    <Panel
+      title="Weekly demand"
+      hint="Bold = pinned week. Red = more than the product's machines can make that week (needs stock built earlier)."
+      actions={<GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />}
+    >
       <div className="max-h-[75vh] overflow-auto">
         <table className="w-full border-separate border-spacing-0 text-xs">
           <thead className="sticky top-0 z-10 bg-surface">
             <tr>
               <th className="border-b border-line px-2 py-1.5 text-left font-medium text-muted">Week</th>
-              {dataset.products.map((p, i) => (
+              {smgs.map((p) => (
                 <th key={p.id} className="min-w-[5.5rem] whitespace-nowrap border-b border-line px-1 py-1.5 text-right font-medium" title={p.id}>
                   <span className="inline-flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
+                    <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(dataset.products.indexOf(p)) }} />
                     {productName(dataset, p)}
                   </span>
                 </th>
@@ -97,7 +106,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
             </tr>
             <tr>
               <th className="border-b border-line px-2 py-1 text-left font-medium text-muted">Year total</th>
-              {dataset.products.map((p) => {
+              {smgs.map((p) => {
                 const d = demandOf(p.id);
                 const pins = d ? Object.keys(d.weekOverrides).length : 0;
                 return (
@@ -129,7 +138,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
                 <td className="tabular whitespace-nowrap border-b border-line/50 px-2 py-0.5 text-muted">
                   <span className="font-medium text-ink">W{week}</span> <span className="text-faint">{shortDate(isoWeekRange(year, week).from)}</span>
                 </td>
-                {dataset.products.map((p) => {
+                {smgs.map((p) => {
                   const pc = checkOf.get(p.id)!;
                   const pinned = demandOf(p.id)?.weekOverrides[week];
                   const value = pc.weeklyDemand[week - 1];
@@ -157,6 +166,60 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
   );
 }
 
+function GroupedWeeklyTable({ dataset, check, groupBy, setGroupBy }: { dataset: Dataset; check: CapacityCheck; groupBy: string; setGroupBy: (v: string | null) => void }) {
+  const year = dataset.settings.planningYear;
+  const checkOf = new Map(check.products.map((p) => [p.productId, p]));
+  const groups = groupProducts(dataset, dataset.products.filter((p) => !p.isPreSmg), groupBy);
+  const sum = (ids: string[], f: (pc: ProductCheck) => number) => ids.reduce((a, id) => a + f(checkOf.get(id)!), 0);
+  return (
+    <Panel
+      title="Weekly demand"
+      hint="Summed per group (read-only). Group by product to edit."
+      actions={<GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />}
+    >
+      <div className="max-h-[75vh] overflow-auto">
+        <table className="w-full border-separate border-spacing-0 text-xs" data-testid="demand-grouped">
+          <thead className="sticky top-0 z-10 bg-surface">
+            <tr>
+              <th className="border-b border-line px-2 py-1.5 text-left font-medium text-muted">Week</th>
+              {groups.map((g) => (
+                <th key={g.key} className="min-w-[5.5rem] whitespace-nowrap border-b border-line px-2 py-1.5 text-right font-medium" title={`${g.productIds.length} products`}>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(g.colorIndex) }} />
+                    {g.label}
+                  </span>
+                </th>
+              ))}
+            </tr>
+            <tr>
+              <th className="border-b border-line px-2 py-1 text-left font-medium text-muted">Year total</th>
+              {groups.map((g) => (
+                <th key={g.key} className="tabular border-b border-line px-2 py-1 text-right font-semibold">
+                  {units(sum(g.productIds, (pc) => pc.yearlyDemand))}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {isoWeeks(year).map((week) => (
+              <tr key={week} className="hover:bg-surface-2/60">
+                <td className="tabular whitespace-nowrap border-b border-line/50 px-2 py-0.5 text-muted">
+                  <span className="font-medium text-ink">W{week}</span> <span className="text-faint">{shortDate(isoWeekRange(year, week).from)}</span>
+                </td>
+                {groups.map((g) => (
+                  <td key={g.key} className="tabular border-b border-line/50 px-2 py-0.5 text-right text-muted">
+                    {units(sum(g.productIds, (pc) => pc.weeklyDemand[week - 1]))}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
 function ProductCheckTable({ dataset, check }: { dataset: Dataset; check: CapacityCheck }) {
   return (
     <Panel title="Capacity check: products" hint="Max = all capable machines making only this product. A shortfall means the demand can't be met even building stock from week 1.">
@@ -171,6 +234,7 @@ function ProductCheckTable({ dataset, check }: { dataset: Dataset; check: Capaci
         </thead>
         <tbody>
           {check.products.map((p, i) => {
+            if (dataset.products[i]?.isPreSmg) return null;
             const pct = p.maxYearlyOutput > 0 ? (100 * p.yearlyDemand) / p.maxYearlyOutput : p.yearlyDemand > 0 ? Infinity : 0;
             const status =
               p.shortfall > 0.5 ? (

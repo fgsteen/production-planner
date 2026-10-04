@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { checkCapacity } from '../model/demand';
-import type { Dataset } from '../model/types';
+import { groupProducts } from '../model/products';
+import { DEFAULT_PRIORITIES } from '../model/seed';
+import type { Dataset, Priorities } from '../model/types';
 import { useDataset } from '../store/DatasetContext';
 import { fmt, productColor } from '../ui/palette';
-import type { PlanResult } from './lp';
+import { MIP_REL_GAP, TIME_LIMIT_S, type PlanResult } from './lp';
 import { TransportBreakdown, WeeklyMachinePlan } from './PlanDetails';
 import type { WorkerRequest, WorkerResponse } from './plan.worker';
-import { productName } from '../model/products';
 import { Panel } from '../ui/Panel';
+import { GroupBySelect } from '../ui/GroupBy';
+import { WarehousePanel } from './Warehouse';
 
 type State = { kind: 'solving' } | { kind: 'done'; plan: PlanResult } | { kind: 'error'; error: string };
 
@@ -46,10 +49,13 @@ export function PlanPage() {
       <div>
         <h2 className="text-base font-semibold tracking-tight">Draft plan {dataset.settings.planningYear}</h2>
         <p className="text-sm text-muted">
-          Solved in your browser (HiGHS): shifts per product per machine that meet weekly demand at the least machine time, building stock ahead only
-          as far as storage allows and trucking B goods to A within the weekly truck limit. Not yet included: line clears, priorities.
+          Solved in your browser (HiGHS): shifts per product per machine that meet weekly demand, building stock ahead only as far as storage allows,
+          trucking B goods to A and pre-SMGs to B within the weekly truck limits. Each product run on a machine in a week costs a large line clear,
+          each further lot (max one shift) a small one. The priorities below weigh the goals. The solver stops within {100 * MIP_REL_GAP} % of the
+          best plan or after {TIME_LIMIT_S} s.
         </p>
       </div>
+      <PrioritiesPanel />
       {errors.length > 0 ? (
         <p role="alert" className="rounded-xl border border-[#edc948]/60 bg-[#edc948]/10 px-4 py-3 text-sm">
           Fix the {errors.length} {errors.length === 1 ? 'problem' : 'problems'} on the Master data or Demand page first.
@@ -69,23 +75,94 @@ export function PlanPage() {
   );
 }
 
+const PRIORITY_LABELS: [keyof Priorities, string, string][] = [
+  ['balance', 'Balanced load', "Keep the busiest machine's yearly utilisation low."],
+  ['lineClears', 'Few line clears', 'Least time lost to line clears: longer campaigns, more stock.'],
+  ['transport', 'Little transport', 'Fewest pallets trucked between the sites.'],
+  ['spare', 'Spare capacity', 'Least machine time overall: fast machines first.'],
+];
+
+/** Priority weights (R22): edited as sliders, saved (and re-solved) shortly after the last change. */
+function PrioritiesPanel() {
+  const { dataset, dispatch } = useDataset();
+  const key = JSON.stringify({ ...DEFAULT_PRIORITIES, ...dataset.settings.priorities });
+  const [draft, setDraft] = useState<Priorities>(() => JSON.parse(key));
+  useEffect(() => setDraft(JSON.parse(key)), [key]);
+  useEffect(() => {
+    if (JSON.stringify(draft) === key) return;
+    const t = setTimeout(() => dispatch({ type: 'updateSettings', patch: { priorities: draft } }), 500);
+    return () => clearTimeout(t);
+  }, [draft, key, dispatch]);
+  const isDefault = PRIORITY_LABELS.every(([k]) => draft[k] === DEFAULT_PRIORITIES[k]);
+
+  return (
+    <Panel
+      title="Priorities"
+      testId="priorities"
+      hint="How much each goal counts, 0–10. Unmet demand always counts far more than any of them."
+      actions={
+        <button
+          type="button"
+          disabled={isDefault}
+          onClick={() => setDraft(DEFAULT_PRIORITIES)}
+          className="text-xs text-accent hover:underline disabled:text-faint disabled:no-underline"
+        >
+          Reset to default
+        </button>
+      }
+    >
+      <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+        {PRIORITY_LABELS.map(([k, label, hint]) => (
+          <label key={k} className="block text-xs">
+            <span className="flex justify-between">
+              <span className="font-medium">{label}</span>
+              <span className="tabular text-muted">{draft[k]}</span>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              aria-label={`${label} weight`}
+              value={draft[k]}
+              onChange={(e) => setDraft({ ...draft, [k]: Number(e.target.value) })}
+              className="w-full accent-[var(--color-accent)]"
+            />
+            <span className="text-faint">{hint}</span>
+          </label>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
   const check = useMemo(() => checkCapacity(dataset), [dataset]);
+  const [groupBy, setGroupBy] = useState<string | null>(null);
   const shiftsOf = new Map(plan.shifts.map((s) => [`${s.machineId}/${s.productId}`, s.shifts]));
   const capable = new Set(dataset.capabilities.map((c) => `${c.machineId}/${c.productId}`));
-  const products = dataset.products;
+  const groups = groupProducts(dataset, dataset.products, groupBy);
   const totalShifts = plan.shifts.reduce((a, s) => a + s.shifts, 0);
+  const lineClears = new Map(plan.lineClears.map((l) => [l.machineId, l]));
+  const siteName = new Map(dataset.sites.map((s) => [s.id, s.name.replace(/^Site /, '')]));
+  const trucks = plan.lanes.map((l) => {
+    const lane = dataset.truckLanes.find((t) => t.id === l.laneId)!;
+    return [`Trucks ${siteName.get(lane.fromSiteId)} → ${siteName.get(lane.toSiteId)}`, fmt(l.weeks.reduce((a, w) => a + w.trucksUsed, 0))] as const;
+  });
 
   return (
     <>
       <dl data-testid="plan-summary" className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {(
           [
-            ['Status', plan.status],
+            ['Status', plan.status === 'Optimal' ? 'Optimal' : 'Best found'],
             ['Unmet demand', `${fmt(plan.unmetUnits)} units`],
             ['Shifts planned', fmt(totalShifts)],
-            ['Trucks B → A', fmt(plan.lanes.reduce((a, l) => a + l.weeks.reduce((b, w) => b + w.trucksUsed, 0), 0))],
-            ['Solve time', `${fmt(plan.solveMs)} ms`],
+            ['Busiest machine', `${fmt(100 * plan.maxUtilisation)} %`],
+            ['Large line clears', fmt(plan.lineClears.reduce((a, l) => a + l.large, 0))],
+            ...trucks,
+            ['Solve time', `${(plan.solveMs / 1000).toFixed(1)} s`],
+            ['Gap to optimum', plan.mipGap === undefined ? '–' : `≤ ${plan.mipGap < 0.001 ? '0.1' : fmt(100 * plan.mipGap)} %`],
           ] as const
         ).map(([label, value]) => (
           <div key={label} className="rounded-xl border border-line bg-surface px-4 py-3">
@@ -97,46 +174,57 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
         ))}
       </dl>
 
-      <Panel title="Shifts per machine and product" hint="Shifts over the year. Utilisation = planned ÷ available shifts. Grey cells: the machine can't make that product.">
+      <Panel
+        title="Shifts per machine and product"
+        hint="Shifts over the year, line clears included. Utilisation = planned ÷ available shifts. Grey cells: the machine can't make that product. Line clears: large (product changes) / small (between lots)."
+        actions={<GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-xs" data-testid="plan-table">
             <thead>
               <tr className="border-b border-line text-muted">
                 <th className="py-1.5 pr-3 text-left font-medium">Machine</th>
-                {products.map((p, i) => (
-                  <th key={p.id} className="whitespace-nowrap px-1 py-1.5 text-right font-medium" title={p.id}>
+                {groups.map((g) => (
+                  <th key={g.key} className="whitespace-nowrap px-1 py-1.5 text-right font-medium" title={g.productIds.join(', ')}>
                     <span className="inline-flex items-center gap-1">
-                      <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                      {productName(dataset, p)}
+                      <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(g.colorIndex) }} />
+                      {g.label}
                     </span>
                   </th>
                 ))}
                 <th className="py-1.5 pl-3 text-right font-medium">Total</th>
+                <th className="whitespace-nowrap py-1.5 pl-3 text-right font-medium">Line clears</th>
+                <th className="whitespace-nowrap py-1.5 pl-3 text-right font-medium">Clear time</th>
                 <th className="w-40 py-1.5 pl-3 text-left font-medium">Utilisation</th>
               </tr>
             </thead>
             <tbody>
               {dataset.machines.map((m) => {
-                const total = products.reduce((a, p) => a + (shiftsOf.get(`${m.id}/${p.id}`) ?? 0), 0);
+                const total = dataset.products.reduce((a, p) => a + (shiftsOf.get(`${m.id}/${p.id}`) ?? 0), 0);
+                const lc = lineClears.get(m.id);
                 const available = (check.machineHours.get(m.id) ?? []).reduce((a, b) => a + b, 0) / dataset.settings.shiftHours;
                 const util = available > 0 ? (100 * total) / available : 0;
                 return (
                   <tr key={m.id} data-testid={`plan-row-${m.id}`} className="border-b border-line/50">
                     <td className="py-1 pr-3 font-medium">{m.name}</td>
-                    {products.map((p, i) => {
-                      const key = `${m.id}/${p.id}`;
-                      const s = shiftsOf.get(key) ?? 0;
+                    {groups.map((g) => {
+                      const can = g.productIds.some((id) => capable.has(`${m.id}/${id}`));
+                      const s = g.productIds.reduce((a, id) => a + (shiftsOf.get(`${m.id}/${id}`) ?? 0), 0);
                       return (
                         <td
-                          key={p.id}
-                          className={`tabular px-1 py-1 text-right ${capable.has(key) ? '' : 'bg-surface-2/70'}`}
-                          style={s >= 0.5 ? { background: `color-mix(in srgb, ${productColor(i)} ${Math.min(45, 8 + s / 15)}%, transparent)` } : undefined}
+                          key={g.key}
+                          className={`tabular px-1 py-1 text-right ${can ? '' : 'bg-surface-2/70'}`}
+                          style={s >= 0.5 ? { background: `color-mix(in srgb, ${productColor(g.colorIndex)} ${Math.min(45, 8 + s / 15)}%, transparent)` } : undefined}
                         >
-                          {s >= 0.5 ? fmt(s) : capable.has(key) ? <span className="text-faint">0</span> : ''}
+                          {s >= 0.5 ? fmt(s) : can ? <span className="text-faint">0</span> : ''}
                         </td>
                       );
                     })}
                     <td className="tabular py-1 pl-3 text-right font-medium">{fmt(total)}</td>
+                    <td className="tabular whitespace-nowrap py-1 pl-3 text-right" data-testid={`line-clears-${m.id}`}>
+                      {lc ? `${fmt(lc.large)} / ${fmt(lc.small)}` : '–'}
+                    </td>
+                    <td className="tabular whitespace-nowrap py-1 pl-3 text-right text-muted">{lc ? `${fmt(lc.hours)} h` : '–'}</td>
                     <td className="py-1 pl-3">
                       <span className="flex items-center gap-2">
                         <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
@@ -154,6 +242,7 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
       </Panel>
 
       <WeeklyMachinePlan dataset={dataset} plan={plan} check={check} />
+      <WarehousePanel dataset={dataset} plan={plan} />
       <TransportBreakdown dataset={dataset} plan={plan} />
     </>
   );

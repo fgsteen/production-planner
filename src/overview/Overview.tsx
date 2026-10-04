@@ -38,14 +38,17 @@ export function Overview({ dataset }: { dataset: Dataset }) {
 
 
 function Stats({ dataset }: { dataset: Dataset }) {
-  const lane = dataset.truckLanes[0];
+  const site = new Map(dataset.sites.map((s) => [s.id, s.name.replace(/^Site /, '')]));
   const items = [
     ['Sites', dataset.sites.length],
     ['Machines', dataset.machines.length],
     ['Products', dataset.products.length],
     ['Machine–product pairs', dataset.capabilities.length],
     ['Storage (pallets)', fmt(dataset.storageLocations.reduce((s, l) => s + l.capacityPallets, 0))],
-    ['Truck capacity / wk', lane ? `${fmt(lane.maxTrucksPerWeek * lane.palletsPerTruck)} pallets` : '—'],
+    [
+      'Truck capacity / wk',
+      dataset.truckLanes.map((l) => `${site.get(l.fromSiteId)}→${site.get(l.toSiteId)} ${fmt(l.maxTrucksPerWeek * l.palletsPerTruck)}`).join(' · ') || '—',
+    ],
   ] as const;
   return (
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
