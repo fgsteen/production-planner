@@ -20,6 +20,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R13 | Global max campaign length in shifts. | M | done | S01 |
 | R14 | Edit all master data in the app (inline tables), saved in the browser; reset to demo data. | M | done | S03 |
 | R15 | Planning year setting (the plan covers 1 Jan – 31 Dec of that year). | M | done | S03 |
+| R16 | Initial stock per product per storage location (units at the start of week 1); default zero. | M | done | S05 |
 
 ## Overview
 | ID | Requirement | Prio | Status | Source |
@@ -30,12 +31,12 @@ Terms: see the glossary in [domain.md](domain.md).
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
 | R20 | Input a yearly forecast: required quantity per product, in units. | M | done | S01 |
-| R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread evenly — S04, ADR 0004). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
-| R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | agreed | S01 |
-| R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. | M | agreed | S01 |
+| R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread by A's open days — S04/S05, ADR 0004/0005). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
+| R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | done | S01 |
+| R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. Weekly cap (S05, ADR 0005). | M | done | S01 |
 | R19 | Respect max campaign length. | M | agreed | S01 |
 | R28 | Line clear time reduces the producing time of the shift it occurs in. | M | agreed | S01 |
-| R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. First LP (no line clears) on the Plan page, S04. | M | building | S01 |
+| R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. LP on the Plan page with storage and trucks (S04–S05); no line clears yet. | M | building | S01 |
 | R22 | Choose priorities per plan run: changeover time, transport, load balance, spare capacity. | M | agreed | S01 |
 | R23 | Lots are at most one shift's output (configurable later). | M | agreed | S01 |
 | R24 | Plan is per shift (3/day, 7 days/week). | S | agreed | S01 |
@@ -46,14 +47,14 @@ Terms: see the glossary in [domain.md](domain.md).
 | --- | --- | --- | --- | --- |
 | R30 | Load/utilisation per machine. | M | agreed | S01 |
 | R31 | Number of small/large line clears and total line clear time per machine. | M | agreed | S01 |
-| R32 | Transport volume B → A in units and pallets. | M | agreed | S01 |
+| R32 | Transport volume B → A in units and pallets. | M | done | S01 |
 | R37 | Stock level (pallets) per storage location per month vs capacity. | S | agreed | S01 |
-| R38 | Trucks needed B → A per week/month vs allowed truck capacity. | M | agreed | S01 |
+| R38 | Trucks needed B → A per week/month vs allowed truck capacity. | M | done | S01 |
 | R39 | Show which constraints are the bottleneck (e.g. A in-factory storage full, trucks maxed out, machine capacity), and what relaxing them would gain (solver shadow prices / what-if). | S | agreed | S01 |
 | R33 | Flow diagram (Sankey) with numbers: product → machine → site → A. | M | agreed | S01 |
 | R34 | Shift-level timeline of the plan per machine. | S | idea | S01 |
-| R42 | Week-by-week plan per machine: for each machine and ISO week, which products run and how many shifts each, plus utilisation. | M | agreed | S04 |
-| R43 | Transport breakdown B → A: per ISO week and product, the quantity shipped (units, pallets) and trucks used vs the truck limit. | M | agreed | S04 |
+| R42 | Week-by-week plan per machine: for each machine and ISO week, which products run and how many shifts each, plus utilisation. | M | done | S04 |
+| R43 | Transport breakdown B → A: per ISO week and product, the quantity shipped (units, pallets) and trucks used vs the truck limit. | M | done | S04 |
 | R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
 

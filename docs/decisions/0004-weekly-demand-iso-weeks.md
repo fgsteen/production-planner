@@ -16,6 +16,8 @@ maintenance were already decided to recur yearly (`MM-DD`, S03).
 - **Demand** (`Dataset.demand`): per product a `yearlyUnits` total plus `weekOverrides`
   (week number → units). Without overrides the total spreads evenly over all weeks. Pinned weeks
   keep their value; the rest of the total spreads evenly over the unpinned weeks.
+  *S05: the spread now follows the demand site's open days, so holiday weeks get less
+  ([ADR 0005](0005-storage-pools-and-weekly-trucks.md)).*
   Validation: pins may not exceed the total; if every week is pinned they must sum to it.
 - **Units:** demand is in units (pieces), like machine rates.
 - **Holidays/maintenance** are stored as `MM-DD` and matched on month-day, so a week spanning New

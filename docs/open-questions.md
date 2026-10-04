@@ -2,16 +2,16 @@
 
 Answered questions move into the relevant doc (vision, domain, requirements, ADR) and are deleted here.
 
-- **Initial stock** (S04): does the year start with stock on hand (per product, per location), or
-  from zero? The plan and capacity check currently assume zero.
-- **Default priorities** (S04): with only "least machine time", the plan fills the faster A machines
-  to 100 % and leaves B1 at about 15 %. What should the default ranking be?
+- **Default priorities** (S04, still open): with only "least machine time", the plan fills the
+  faster A machines to 100 % and leaves B1 at about 4 %. It also runs the trucks at their limit in
+  34 of 52 weeks. What should the default ranking be?
   - least line clears;
   - least transport;
   - balanced load;
   - spare capacity.
-- **Demand in holiday weeks** (S04): the yearly total spreads evenly over all weeks, including
-  Christmas week. Should the spread follow the days A actually consumes, e.g. its working days
-  minus A's holidays?
-- **Truck granularity** (S04): is a weekly cap (max trucks/week × pallets) enough, or must trucks be
-  planned per day? Per-day planning would honour the weekend/holiday toggle exactly.
+- **Transit time** (S05): goods shipped B → A arrive in the same week. Is that right, or should a
+  truck take a day or more, so it ships a week earlier?
+- **Whole pallets** (S05): the plan ships and stores fractional pallets. Does the plan need whole
+  pallets or whole trucks? That needs integer variables and is slower.
+- **Open days at A** (S05): demand counts all seven days of the week, minus A's holidays. Does A
+  consume on weekends, or should only some weekdays count?

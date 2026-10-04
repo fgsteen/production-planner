@@ -66,6 +66,8 @@ would need a small backend to keep the API key secret.
 - Least machine-hours alone loads the fastest machines (site A) to 100 % and leaves B1 nearly idle:
   the priority weights (R22) and transport costs are needed for sensible plans.
 - Next: integer lots and line clears (MILP), storage locations, trucks, priority weights.
+- S05: storage pools, the weekly truck limit and initial stock are in the LP
+  ([ADR 0005](0005-storage-pools-and-weekly-trucks.md)). Still continuous: no line clears yet.
 
 ## Consequences
 - Period granularity: ISO weeks (ADR 0004).

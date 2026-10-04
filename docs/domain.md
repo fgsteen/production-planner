@@ -50,13 +50,15 @@ Line clear times don't depend on the product for now; they are set per machine.
 - Max lot size = one shift's output.
 
 ## Demand, storage and transport
-- **Demand** per product, in **units**: a yearly total, spread evenly over the ISO weeks of the
-  planning year. Chosen weeks can be **pinned** to a quantity; the rest of the total spreads over
+- **Demand** per product, in **units**: a yearly total, spread over the ISO weeks of the
+  planning year in proportion to the days A is open (not a holiday), so holiday weeks get less (S05). Chosen weeks can be **pinned** to a quantity; the rest of the total spreads over
   the other weeks (S04, [ADR 0004](decisions/0004-weekly-demand-iso-weeks.md)). Demand is what A
   consumes that week; it isn't even through the year.
 - **Time grid:** ISO 8601 weeks (as in Sweden). The planning year runs from Monday of week 1 to
   Sunday of week 52/53.
 - Producing earlier is fine. The only limit on producing ahead is **storage space**.
+- **Initial stock:** units per product per storage location at the start of week 1. Editable;
+  the default is zero (S05).
 - Storage is counted in **pallets**, as a total across products (not per product), per storage location:
 
 | Location | Site | Role |
@@ -72,7 +74,10 @@ limit is the bottleneck (R39).
   - **size:** pallets per truck, default **30**, editable;
   - **frequency:** max trucks per week, default **5**, editable. The plan
     also reports **how many trucks are actually needed**;
-  - **toggle:** whether trucks run on weekends and holidays.
+  - **toggle:** whether trucks run on weekends and holidays. If not, the weekly maximum is for a
+    five-day week and drops with weekday holidays at either site, e.g. 10 → 8 in Midsummer week
+    (weekly cap, not per-day trucks; S05, [ADR 0005](decisions/0005-storage-pools-and-weekly-trucks.md));
+  - the **demo data** uses 10 trucks/week: its B-only products need about 7.4.
 - Pallets per product = units ÷ (units per crate × crates per pallet).
 
 ```

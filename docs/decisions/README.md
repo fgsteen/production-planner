@@ -31,3 +31,4 @@ What becomes easier/harder; follow-ups.
 | [0002](0002-stack.md) | Tech stack: client-only TypeScript app, static hosting | accepted |
 | [0003](0003-planning-engine.md) | Planning engine: MILP optimisation (lot-sizing), not ML or an agent | accepted |
 | [0004](0004-weekly-demand-iso-weeks.md) | Weekly time grid (ISO weeks) and demand as a yearly total with pinned weeks | accepted |
+| [0005](0005-storage-pools-and-weekly-trucks.md) | Stock per storage pool, weekly truck limit, initial stock, demand by open days | accepted |
