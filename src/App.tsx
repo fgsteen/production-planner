@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MasterData } from './data/MasterData';
+import { DemandPage } from './demand/DemandPage';
 import { seedDataset } from './model/seed';
 import { Overview } from './overview/Overview';
 import { DatasetProvider, useDataset } from './store/DatasetContext';
@@ -8,11 +9,12 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 const PAGES = [
   ['overview', 'Overview'],
   ['data', 'Master data'],
+  ['demand', 'Demand'],
 ] as const;
 type Page = (typeof PAGES)[number][0];
 
 // The page lives in the URL hash so reloads and links keep it (and GitHub Pages needs no routing).
-const pageFromHash = (): Page => (window.location.hash === '#data' ? 'data' : 'overview');
+const pageFromHash = (): Page => PAGES.find(([id]) => `#${id}` === window.location.hash)?.[0] ?? 'overview';
 
 export function App() {
   return (
@@ -59,7 +61,9 @@ function Shell() {
           <span className="ml-auto hidden text-xs text-faint sm:inline">{dataset === seedDataset ? 'Demo data' : 'Your data (saved in this browser)'}</span>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">{page === 'data' ? <MasterData /> : <Overview dataset={dataset} />}</main>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        {page === 'data' ? <MasterData /> : page === 'demand' ? <DemandPage /> : <Overview dataset={dataset} />}
+      </main>
     </div>
   );
 }

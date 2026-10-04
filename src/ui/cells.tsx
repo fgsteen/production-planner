@@ -2,6 +2,9 @@
 // Enter (Escape reverts), so half-typed values never reach the store.
 import { useEffect, useState, type KeyboardEvent } from 'react';
 
+/** Parses `12 345`, `12345` or `12,5` (decimal comma). */
+const parseNumber = (d: string) => Number(d.replace(/\s/g, '').replace(',', '.'));
+
 const INPUT =
   'w-full rounded-md border border-transparent bg-transparent px-2 py-1 outline-none transition-colors hover:border-line focus:border-accent focus:bg-surface';
 
@@ -35,7 +38,7 @@ export function TextCell({ value, onCommit, label }: { value: string; onCommit: 
 
 export function NumberCell({ value, onCommit, label, suffix }: { value: number; onCommit: (v: number) => void; label: string; suffix?: string }) {
   const props = useDraft(String(value), (d) => {
-    const n = Number(d.replace(',', '.'));
+    const n = parseNumber(d);
     if (d.trim() === '' || !Number.isFinite(n)) return false;
     onCommit(n);
     return true;
@@ -48,13 +51,55 @@ export function NumberCell({ value, onCommit, label, suffix }: { value: number; 
   );
 }
 
-/** Comma/space-separated list of `YYYY-MM-DD` dates. Format checks are left to validation. */
-export function DateListCell({ value, onCommit, label }: { value: string[]; onCommit: (v: string[]) => void; label: string }) {
+/**
+ * Comma/space-separated list of recurring `MM-DD` days. A full `YYYY-MM-DD` date is accepted and
+ * loses its year. Format checks are left to validation.
+ */
+export function MonthDayListCell({ value, onCommit, label }: { value: string[]; onCommit: (v: string[]) => void; label: string }) {
   const props = useDraft(value.join(', '), (d) => {
-    onCommit(d.split(/[\s,;]+/).filter(Boolean).sort());
+    const days = d.split(/[\s,;]+/).filter(Boolean).map((s) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? s.slice(5) : s));
+    onCommit([...new Set(days)].sort());
     return true;
   });
-  return <input aria-label={label} placeholder="none" className={`${INPUT} tabular min-w-56 text-xs`} {...props} />;
+  return <input aria-label={label} placeholder="none (MM-DD, e.g. 12-25)" className={`${INPUT} tabular min-w-56 text-xs`} {...props} />;
+}
+
+/** Compact number input where clearing the field commits `null`. */
+export function OptionalNumberCell({
+  value,
+  display,
+  onCommit,
+  label,
+  className = '',
+  title,
+}: {
+  value: number | null;
+  display: string;
+  onCommit: (v: number | null) => void;
+  label: string;
+  className?: string;
+  title?: string;
+}) {
+  const props = useDraft(display, (d) => {
+    if (d.trim() === '') {
+      if (value === null) return false;
+      onCommit(null);
+      return true;
+    }
+    const n = parseNumber(d);
+    if (!Number.isFinite(n)) return false;
+    onCommit(n);
+    return true;
+  });
+  return (
+    <input
+      aria-label={label}
+      title={title}
+      inputMode="decimal"
+      className={`tabular w-full rounded border border-transparent px-1.5 py-0.5 text-right text-xs outline-none transition-colors hover:border-line focus:border-accent focus:bg-surface ${className}`}
+      {...props}
+    />
+  );
 }
 
 export function SelectCell<T extends string>({

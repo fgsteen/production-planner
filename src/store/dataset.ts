@@ -143,9 +143,13 @@ export function exportJson(ds: Dataset): string {
 
 const COLLECTIONS = ['sites', 'storageLocations', 'truckLanes', 'machines', 'products', 'capabilities'] as const;
 
+const isObject = (x: unknown) => typeof x === 'object' && x !== null;
+
 /** `YYYY-MM-DD` → `MM-DD` (dropping duplicates); anything else is kept for validation to report. */
 function toMonthDays(days: string[] | undefined): string[] {
-  const out = (days ?? []).map((d) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : d));
+  if (days === undefined) return [];
+  if (!Array.isArray(days)) return days; // malformed: left for validation / the error boundary
+  const out = days.map((d) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : d));
   return [...new Set(out)];
 }
 
@@ -176,9 +180,10 @@ export function parseDataset(text: string): ParseResult {
     // Settings added after v1 shipped (e.g. planningYear) fall back to the demo defaults.
     settings: { ...seedDataset.settings, ...(obj.settings as Partial<Settings>) },
     // Files from before S04: no demand, and holidays/maintenance as full dates.
-    demand: (ds.demand ?? []).map((d) => ({ ...d, weekOverrides: d.weekOverrides ?? {} })),
-    sites: ds.sites.map((s) => ({ ...s, holidays: toMonthDays(s.holidays) })),
-    machines: ds.machines.map((m) => ({ ...m, maintenance: toMonthDays(m.maintenance) })),
+    // Malformed entries (e.g. null) pass through untouched; the error boundary handles them.
+    demand: (ds.demand ?? []).map((d) => (isObject(d) ? { ...d, weekOverrides: d.weekOverrides ?? {} } : d)),
+    sites: ds.sites.map((s) => (isObject(s) ? { ...s, holidays: toMonthDays(s.holidays) } : s)),
+    machines: ds.machines.map((m) => (isObject(m) ? { ...m, maintenance: toMonthDays(m.maintenance) } : m)),
   };
   return { ok: true, dataset };
 }

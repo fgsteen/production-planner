@@ -88,11 +88,12 @@ test.describe('master data', () => {
     await expect(page.getByText('210 pallets')).toBeVisible();
   });
 
-  test('invalid holiday dates are reported', async ({ page }) => {
+  test('holidays recur as MM-DD; full dates lose their year; invalid days are reported', async ({ page }) => {
     await page.getByRole('tab', { name: 'Sites & logistics' }).click();
-    await page.getByLabel('A holidays').fill('2027-01-01, 2027-13-01');
+    await page.getByLabel('A holidays').fill('2027-12-25, 13-01');
     await page.getByLabel('A holidays').press('Enter');
-    await expect(page.getByTestId('problems')).toContainText('Site A: invalid holiday date "2027-13-01"');
+    await expect(page.getByLabel('A holidays')).toHaveValue('12-25, 13-01');
+    await expect(page.getByTestId('problems')).toContainText('Site A: invalid holiday "13-01" (expected MM-DD)');
   });
 
   test('rejects an invalid import file', async ({ page }) => {

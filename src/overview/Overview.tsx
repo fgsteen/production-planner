@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { availableShifts, effectiveRate, unitsPerPallet } from '../model/capacity';
 import type { Dataset, Machine, Site } from '../model/types';
+import { isoWeeksInYear, isoYearRange } from '../model/weeks';
 import { fmt, productColor, siteColor } from '../ui/palette';
 import { SiteMap } from './SiteMap';
 
@@ -18,7 +19,7 @@ export function Overview({ dataset }: { dataset: Dataset }) {
         <SiteMap dataset={dataset} productColors={productColors} />
       </Section>
 
-      <Section title="Machines by site" hint={`Effective rate = rate × OEE. Available shifts in ${year} after holidays and maintenance.`}>
+      <Section title="Machines by site" hint={`Effective rate = rate × OEE. Available shifts in ${year} (ISO weeks 1–${isoWeeksInYear(year)}) after holidays and maintenance.`}>
         <div className="grid gap-6 lg:grid-cols-2">
           {dataset.sites.map((site) => (
             <SitePanel key={site.id} site={site} dataset={dataset} productColors={productColors} maxRate={maxRate} focus={focus} year={year} />
@@ -106,7 +107,8 @@ function MachineCard({ machine, site, dataset, productColors, maxRate, focus, ye
   const caps = dataset.capabilities.filter((c) => c.machineId === machine.id);
   const canMakeFocus = focus !== null && caps.some((c) => c.productId === focus);
   const dimmed = focus !== null && !canMakeFocus;
-  const shifts = availableShifts(machine, site, `${year}-01-01`, `${year}-12-31`);
+  const { from, to } = isoYearRange(year);
+  const shifts = availableShifts(machine, site, from, to);
   return (
     <article
       data-testid={`machine-${machine.id}`}

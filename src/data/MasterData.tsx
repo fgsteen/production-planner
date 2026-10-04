@@ -3,7 +3,7 @@ import { effectiveRate, unitsPerPallet } from '../model/capacity';
 import type { Dataset, Machine, StorageAccepts, StorageLocation } from '../model/types';
 import { exportJson, parseDataset } from '../store/dataset';
 import { useDataset } from '../store/DatasetContext';
-import { CheckboxCell, DateListCell, NumberCell, RemoveButton, SelectCell, TextCell, WeekdaysCell } from '../ui/cells';
+import { CheckboxCell, MonthDayListCell, NumberCell, RemoveButton, SelectCell, TextCell, WeekdaysCell } from '../ui/cells';
 import { fmt, productColor, siteColor } from '../ui/palette';
 
 const TABS = [
@@ -205,7 +205,7 @@ function MachinesTable() {
               <NumberCell label={`${m.id} large line clear`} suffix="min" value={m.largeLineClearMin} onCommit={(largeLineClearMin) => update({ largeLineClearMin })} />
             </td>
             <td>
-              <DateListCell label={`${m.id} maintenance days`} value={m.maintenance} onCommit={(maintenance) => update({ maintenance })} />
+              <MonthDayListCell label={`${m.id} maintenance days`} value={m.maintenance} onCommit={(maintenance) => update({ maintenance })} />
             </td>
             <td>
               <RemoveButton
@@ -398,7 +398,7 @@ function SitesAndLogistics() {
               </span>
             </td>
             <td className="w-full">
-              <DateListCell label={`${s.id} holidays`} value={s.holidays} onCommit={(holidays) => dispatch({ type: 'updateSite', id: s.id, patch: { holidays } })} />
+              <MonthDayListCell label={`${s.id} holidays`} value={s.holidays} onCommit={(holidays) => dispatch({ type: 'updateSite', id: s.id, patch: { holidays } })} />
             </td>
           </tr>
         ))}
@@ -487,7 +487,7 @@ function SettingsForm() {
   const rows: [string, string, ReactNode][] = [
     [
       'Planning year',
-      'The calendar year the plan covers (1 Jan to 31 Dec).',
+      'The ISO week-year the plan covers: Monday of week 1 to Sunday of week 52/53.',
       <NumberCell label="Planning year" value={settings.planningYear} onCommit={(planningYear) => dispatch({ type: 'updateSettings', patch: { planningYear } })} />,
     ],
     [
