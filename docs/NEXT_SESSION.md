@@ -14,20 +14,24 @@ _Written at the end of S08 (2026-10-04)._
     2. campaign cycles (low-volume pairs run every k-th week, k from the weight);
     3. fix runs;
     4. MIP with about 1 s left.
+- **Demo:** it starts with half a week of demand per SFG in the A warehouse (about 280 of its 600
+  pallets; user, after S08).
 - **Demo results** (`npm run measure:plan`):
 
   | Line clear weight | Large clears | Clear hours | Busiest machine |
   | --- | --- | --- | --- |
-  | 0 | 754 | 3,121 | 70 % |
-  | 4 | 635 | 2,811 | 77 % |
-  | 10 | 676 | 2,691 | 91 % |
+  | 0 | 753 | 3,100 | 69 % |
+  | 4 | 623 | 2,774 | 77 % |
+  | 10 | 527 | 2,503 | 89 % |
 
   - About 6–7 s per solve. The gap shows "not proven", because the HiGHS bound is useless here.
 - **Plan page:**
   - solve progress (step x of 3, with a timer) and a Cancel button;
   - a change during a solve restarts it;
   - "Line clear hours" in the summary.
-- `npm test` is green: tooling tests, typecheck, 77 unit tests and 24 e2e tests.
+- **Overview:** the A → B pre-SFG lane runs under the machines.
+- **PNG exports** follow the page's light or dark theme (R45).
+- `npm test` is green: tooling tests, typecheck, 77 unit tests and 25 e2e tests.
 
 ## Known weak spots
 1. **Demand beyond capacity** (R64, user S08: fair share).
@@ -38,31 +42,12 @@ _Written at the end of S08 (2026-10-04)._
    (14 s in total).
 3. **The MIP stage rarely improves the start.** Plan quality comes from the cycle heuristic, tuned
    by `CAMPAIGN_LOTS_PER_WEIGHT = 1` and `MAX_CYCLE = 8` in `solve.ts`.
-4. **Line clear counts don't always fall with the weight** (754 → 635 → 676); hours do. The goal
-   weighs hours.
-5. **Week 1 starts without stock** in the demo (fix 3 above).
+4. **Line clear counts need not fall with the weight:** the goal weighs hours. They did fall
+   with initial stock (753 → 623 → 527); without it, 754 → 635 → 676.
+5. **PNG export of the Overview map** leaves out the machine → store connector lines, though they
+   show on the page. Probably html-to-image and the React Flow edge styling; it predates S08.
 
-## Priority first in S09: three small fixes (user, after S08)
-1. **A → B transport line on the Overview** (`src/overview/SiteMap.tsx`, `buildGraph`, the
-   truck-lane edges at about line 132). It is drawn across the machine and store nodes. Route it
-   around them, e.g.:
-   - other handles (bottom/top) or an offset `smoothstep` path;
-   - or a custom edge that runs below the site groups.
-   Check it in the browser pane with a screenshot.
-2. **Downloaded PNGs follow the site's theme** (R45, [ADR 0006](decisions/0006-product-characteristics-and-png-export.md)).
-   - Today `downloadPng` in `src/ui/Panel.tsx` forces `.light-theme`. Drop that, and give
-     `toPng` the panel's computed background colour so dark exports aren't transparent.
-   - Update R45 ("light theme" → "the current theme") and ADR 0006: a short note, or a new ADR.
-   - The e2e export test may assert the light theme: check `e2e/export.spec.ts`.
-3. **Initial stock in the demo by default** (answers the open question; user, after S08).
-   - `seed.ts` has `initialStock: []`. Add some stock at A, e.g. half a week of demand per SFG in
-     the A warehouse: the earlier proposal, not a confirmed amount.
-   - Check it fits the storage capacity, re-measure (`npm run measure:plan`), and update test
-     expectations that assume no stock.
-   - Existing users keep their saved data. Check whether a stored dataset should pick up the new
-     default (probably not; "reset to demo" would).
-
-## Then: proposed goal for S09
+## Proposed goal for S09
 **What-if for growing demand: fair-share unmet demand, and show where it falls short.**
 - **R64, the model:**
   - add `F ≥ Σ_w short[p,w] ÷ demand_p` for each SFG;
@@ -89,7 +74,6 @@ _Written at the end of S08 (2026-10-04)._
   list. See [open-questions.md](open-questions.md).
 - **Still open from earlier:**
   - may an SFG with a pre-SFG be made at A?
-  - how much initial stock (if half a week of demand doesn't suit)?
   - transit time;
   - whole pallets;
   - weekend consumption at A;

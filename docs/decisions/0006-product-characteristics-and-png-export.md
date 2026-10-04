@@ -31,7 +31,8 @@ R45 asks for a PNG download of every chart or table panel, at 2×, in the light 
   panels. The Master data editor is not a panel.
 - `html-to-image` renders the live DOM. It handles tables, CSS charts and the React Flow map
   alike. While it renders:
-  - the panel gets `.light-theme`, which sets the light tokens on that subtree;
+  - ~~the panel gets `.light-theme`, which sets the light tokens on that subtree;~~ Amended after
+    S08 (user): exports keep the page's current theme, on the panel's computed background colour;
   - it gets `.png-export`, which expands scroll areas so wide or long tables export whole;
   - the panel's controls (`data-export-ignore`) are left out.
 - The file is named `<panel-title>-<date>.png`.
@@ -40,4 +41,5 @@ R45 asks for a PNG download of every chart or table panel, at 2×, in the light 
 - Product ids (P01 …) remain the keys in demand, capabilities, stock and the LP. Names are display
   only, so renaming never breaks data.
 - With 20 products the per-product tables scroll sideways. Grouping (R44) is next.
-- While a dark-mode panel renders to PNG, it shows in light colours for a moment.
+- ~~While a dark-mode panel renders to PNG, it shows in light colours for a moment.~~ No longer
+  after S08: exports keep the current theme.

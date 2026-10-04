@@ -1,6 +1,6 @@
 // Generic demo data (R7, R18): placeholder names and numbers only. Holidays and maintenance are
 // `MM-DD` and recur every year.
-import type { Capability, Characteristic, Dataset, Demand, Machine, Priorities, Product, TruckLane } from './types';
+import type { Capability, Characteristic, Dataset, Demand, InitialStock, Machine, Priorities, Product, TruckLane } from './types';
 
 /** Default ranking (user, S07): balanced load first, then line clears, transport, spare capacity. */
 export const DEFAULT_PRIORITIES: Priorities = { balance: 8, lineClears: 4, transport: 2, spare: 1 };
@@ -65,6 +65,10 @@ const CAPS: [string, string, number, number][] = [
  * Yearly demand per product, in units (P01 … P20): a few runners and a long tail, ~34 M in all
  * (cut by a fifth in S07, so the plan has slack for line clears).
  */
+/** Units per crate and crates per pallet, cycling through the SFGs. */
+const UNITS_PER_CRATE = [24, 48, 36, 60, 24];
+const CRATES_PER_PALLET = [40, 32, 36, 24, 48];
+
 const YEARLY_DEMAND = [
   2_800_000, 2_000_000, 1_440_000, 3_200_000, 2_800_000, 2_000_000, 1_600_000, 3_200_000, 2_400_000, 1_200_000,
   1_600_000, 1_200_000, 960_000, 1_760_000, 1_280_000, 1_920_000, 800_000, 1_600_000, 960_000, 640_000,
@@ -111,8 +115,8 @@ export const seedDataset: Dataset = {
         id: pid(i),
         name: '',
         variants: variantsOf(combination),
-        unitsPerCrate: [24, 48, 36, 60, 24][i % 5],
-        cratesPerPallet: [40, 32, 36, 24, 48][i % 5],
+        unitsPerCrate: UNITS_PER_CRATE[i % 5],
+        cratesPerPallet: CRATES_PER_PALLET[i % 5],
         ...(PRE_SFG_OF[pid(i)] && { preSfgId: PRE_SFG_OF[pid(i)] }),
       }),
     ),
@@ -120,5 +124,10 @@ export const seedDataset: Dataset = {
   ],
   capabilities: CAPS.map(([machineId, productId, ratePerHour, oeePct]): Capability => ({ machineId, productId, ratePerHour, oeePct })),
   demand: YEARLY_DEMAND.map((yearlyUnits, i): Demand => ({ productId: pid(i), yearlyUnits, weekOverrides: pid(i) === 'P07' ? SUMMER_PEAK : {} })),
-  initialStock: [],
+  // Half a week of demand per SFG in the A warehouse, in whole pallets (user, after S08): about 280 of
+  // its 600 pallets, so week 1 isn't a crunch.
+  initialStock: YEARLY_DEMAND.map((yearlyUnits, i): InitialStock => {
+    const perPallet = UNITS_PER_CRATE[i % 5] * CRATES_PER_PALLET[i % 5];
+    return { locationId: 'A-WH', productId: pid(i), units: Math.max(1, Math.round(yearlyUnits / 52 / 2 / perPallet)) * perPallet };
+  }),
 };

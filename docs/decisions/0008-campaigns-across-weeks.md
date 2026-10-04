@@ -46,6 +46,8 @@ Demo, measured with `npm run measure:plan`:
 | 4 | 635 | 2,811 | 77 % | 6.0 s |
 | 10 | 676 | 2,691 | 91 % | 7.2 s |
 
+- **With initial stock.** After S08 the demo starts with half a week of demand in stock: 753, 623
+  and 527 large clears and 3,100, 2,774 and 2,503 hours at weights 0, 4 and 10.
 - The goal weighs line clear **hours**, so hours fall steadily with the weight. Counts need not:
   large clears differ per machine.
 - With a high weight the plan gives up balance: the busiest machine reaches 91 %.
