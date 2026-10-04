@@ -198,5 +198,30 @@
         "calls": 59
       }
     }
+  },
+  {
+    "id": "S09",
+    "goal": "Fair-share unmet demand (R64): model, unmet-per-product panel, warm-start time limits",
+    "start": "2026-10-04T23:38:25+02:00",
+    "end": "2026-10-04T21:52:53.649Z",
+    "wallMinutes": 14,
+    "activeMinutes": 14,
+    "tokens": {
+      "input": 130,
+      "cacheWrite": 95307,
+      "cacheRead": 7954205,
+      "output": 40656,
+      "calls": 65,
+      "total": 8090298
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 130,
+        "cacheWrite": 95307,
+        "cacheRead": 7954205,
+        "output": 40656,
+        "calls": 65
+      }
+    }
   }
 ]
