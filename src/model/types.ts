@@ -73,6 +73,10 @@ export interface Product {
   variants: Record<Id, Id>;
   unitsPerCrate: number;
   cratesPerPallet: number;
+  /** A pre-SMG (R47): an input consumed where SMGs are made, not demanded at the demand site. */
+  isPreSmg?: boolean;
+  /** The pre-SMG this SMG consumes, one unit per unit made, at the site that makes it (R47). */
+  preSmgId?: Id;
 }
 
 /** Machine can produce product. */
@@ -108,6 +112,20 @@ export interface Settings {
   shiftHours: number;
   /** Max consecutive shifts of one product on a machine. */
   maxCampaignShifts: number;
+  /** Plan priority weights, 0–10 each (R22). */
+  priorities: Priorities;
+}
+
+/** Weights of the plan's goals (R22). Higher counts more; 0 ignores a goal. */
+export interface Priorities {
+  /** Keep the busiest machine's utilisation low. */
+  balance: number;
+  /** Least time lost to line clears. */
+  lineClears: number;
+  /** Fewest pallets trucked. */
+  transport: number;
+  /** Least machine time overall (fast machines first), leaving spare capacity. */
+  spare: number;
 }
 
 export interface Dataset {

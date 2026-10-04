@@ -1,6 +1,12 @@
 // Generic demo data (R7, R18): placeholder names and numbers only. Holidays and maintenance are
 // `MM-DD` and recur every year.
-import type { Capability, Characteristic, Dataset, Demand, Machine, Product } from './types';
+import type { Capability, Characteristic, Dataset, Demand, Machine, Priorities, Product, TruckLane } from './types';
+
+/** Default ranking (user, S07): balanced load first, then line clears, transport, spare capacity. */
+export const DEFAULT_PRIORITIES: Priorities = { balance: 8, lineClears: 4, transport: 2, spare: 1 };
+
+/** The A → B lane for pre-SMGs (R48): like B → A, weekdays only, fewer trucks. */
+export const DEFAULT_LANE_A_B: TruckLane = { id: 'A-B', fromSiteId: 'A', toSiteId: 'B', maxTrucksPerWeek: 3, palletsPerTruck: 30, runsOnWeekendsAndHolidays: false };
 
 const ALL_WEEK = { shiftsPerDay: 3, workingWeekdays: [1, 2, 3, 4, 5, 6, 7] };
 
@@ -28,6 +34,12 @@ const COMBINATIONS = [
   'M-2-Alder', 'M-2-Elm', 'M-3-Fir', 'N-1-Birch', 'N-1-Fir', 'N-2-Cedar', 'N-2-Hazel', 'N-3-Alder', 'N-3-Elm', 'K-2-Fir',
 ];
 
+/** Pre-SMGs (R47, user S07): P21 and P22, consumed 1:1 where P12 and P17 are made (only at B). */
+const PRE_SMGS: [string, string][] = [
+  ['L-1-Alder', 'P12'],
+  ['M-3-Birch', 'P17'],
+];
+
 function variantsOf(combination: string): Record<string, string> {
   const names = combination.split('-');
   return Object.fromEntries(CHARACTERISTICS.map((c, i) => [c.id, c.variants.find((v) => v.name === names[i])!.id]));
@@ -45,22 +57,30 @@ const CAPS: [string, string, number, number][] = [
   ['A2', 'P05', 1350, 80], ['A2', 'P07', 750, 71], ['A2', 'P09', 1100, 78], ['A2', 'P14', 1250, 80], ['A2', 'P16', 1400, 82],
   ['A3', 'P06', 1050, 76], ['A3', 'P08', 1450, 83], ['A3', 'P10', 600, 66], ['A3', 'P13', 850, 77], ['A3', 'P16', 1300, 80], ['A3', 'P20', 650, 68],
   ['A4', 'P04', 1300, 79], ['A4', 'P09', 1200, 81], ['A4', 'P10', 650, 69], ['A4', 'P15', 1100, 78], ['A4', 'P18', 1150, 79],
+  // Pre-SMGs: P21 at either site, P22 only at A, so it is trucked A → B.
+  ['B2', 'P21', 1500, 80], ['A1', 'P21', 1700, 84], ['A4', 'P22', 1400, 80],
 ];
 
-/** Yearly demand per product, in units (P01 … P20): a few runners and a long tail, ~42 M in all. */
+/**
+ * Yearly demand per product, in units (P01 … P20): a few runners and a long tail, ~34 M in all
+ * (cut by a fifth in S07, so the plan has slack for line clears).
+ */
 const YEARLY_DEMAND = [
-  3_500_000, 2_500_000, 1_800_000, 4_000_000, 3_500_000, 2_500_000, 2_000_000, 4_000_000, 3_000_000, 1_500_000,
-  2_000_000, 1_500_000, 1_200_000, 2_200_000, 1_600_000, 2_400_000, 1_000_000, 2_000_000, 1_200_000, 800_000,
+  2_800_000, 2_000_000, 1_440_000, 3_200_000, 2_800_000, 2_000_000, 1_600_000, 3_200_000, 2_400_000, 1_200_000,
+  1_600_000, 1_200_000, 960_000, 1_760_000, 1_280_000, 1_920_000, 800_000, 1_600_000, 960_000, 640_000,
 ];
 
 /** P07 sells mostly in summer: weeks 22–33 are pinned higher; the rest of the year shares what is left. */
-const SUMMER_PEAK: Record<string, number> = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(22 + i), 75_000]));
+const SUMMER_PEAK: Record<string, number> = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(22 + i), 60_000]));
 
 const pid = (i: number) => `P${String(i + 1).padStart(2, '0')}`;
 
+/** SMG id → its pre-SMG's id. */
+const PRE_SMG_OF: Record<string, string> = Object.fromEntries(PRE_SMGS.map(([, smg], i) => [smg, pid(COMBINATIONS.length + i)]));
+
 export const seedDataset: Dataset = {
   version: 1,
-  settings: { planningYear: 2027, shiftHours: 8, maxCampaignShifts: 21 },
+  settings: { planningYear: 2027, shiftHours: 8, maxCampaignShifts: 21, priorities: DEFAULT_PRIORITIES },
   sites: [
     { id: 'B', name: 'Site B', isDemandSite: false, holidays: COMMON_HOLIDAYS },
     { id: 'A', name: 'Site A', isDemandSite: true, holidays: [...COMMON_HOLIDAYS, '06-24'] },
@@ -70,7 +90,10 @@ export const seedDataset: Dataset = {
     { id: 'A-IF', name: 'A in-factory storage', siteId: 'A', capacityPallets: 250, accepts: 'local' },
     { id: 'A-WH', name: 'A warehouse', siteId: 'A', capacityPallets: 600, accepts: 'inbound' },
   ],
-  truckLanes: [{ id: 'B-A', fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 10, palletsPerTruck: 30, runsOnWeekendsAndHolidays: false }],
+  truckLanes: [
+    { id: 'B-A', fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 10, palletsPerTruck: 30, runsOnWeekendsAndHolidays: false },
+    DEFAULT_LANE_A_B,
+  ],
   characteristics: CHARACTERISTICS,
   machines: [
     machine('B1', 'B', 20, 90, ['02-15', '02-16']),
@@ -82,15 +105,19 @@ export const seedDataset: Dataset = {
     machine('A3', 'A', 25, 135, ['08-09']),
     machine('A4', 'A', 15, 80, ['10-11', '10-12']),
   ],
-  products: COMBINATIONS.map(
-    (combination, i): Product => ({
-      id: pid(i),
-      name: '',
-      variants: variantsOf(combination),
-      unitsPerCrate: [24, 48, 36, 60, 24][i % 5],
-      cratesPerPallet: [40, 32, 36, 24, 48][i % 5],
-    }),
-  ),
+  products: [
+    ...COMBINATIONS.map(
+      (combination, i): Product => ({
+        id: pid(i),
+        name: '',
+        variants: variantsOf(combination),
+        unitsPerCrate: [24, 48, 36, 60, 24][i % 5],
+        cratesPerPallet: [40, 32, 36, 24, 48][i % 5],
+        ...(PRE_SMG_OF[pid(i)] && { preSmgId: PRE_SMG_OF[pid(i)] }),
+      }),
+    ),
+    ...PRE_SMGS.map(([combination], i): Product => ({ id: pid(COMBINATIONS.length + i), name: '', variants: variantsOf(combination), unitsPerCrate: 48, cratesPerPallet: 30, isPreSmg: true })),
+  ],
   capabilities: CAPS.map(([machineId, productId, ratePerHour, oeePct]): Capability => ({ machineId, productId, ratePerHour, oeePct })),
   demand: YEARLY_DEMAND.map((yearlyUnits, i): Demand => ({ productId: pid(i), yearlyUnits, weekOverrides: pid(i) === 'P07' ? SUMMER_PEAK : {} })),
   initialStock: [],

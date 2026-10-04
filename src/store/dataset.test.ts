@@ -40,10 +40,20 @@ describe('datasetReducer', () => {
 
   it('adds products and machines with fresh ids', () => {
     const ds = datasetReducer(datasetReducer(seedDataset, { type: 'addProduct' }), { type: 'addMachine', siteId: 'B' });
-    expect(ds.products.at(-1)!.id).toBe('P21');
+    expect(ds.products.at(-1)!.id).toBe('P23');
     expect(ds.machines.at(-1)).toMatchObject({ id: 'B5', siteId: 'B' });
     // A new product has no capability yet, which validation reports.
-    expect(validateDataset(ds)).toEqual(['Product P21: no machine can produce it']);
+    expect(validateDataset(ds)).toEqual(['Product P23: no machine can produce it']);
+  });
+
+  it('unlinks SMGs from a pre-SMG that is removed or unflagged (R47)', () => {
+    const removed = datasetReducer(seedDataset, { type: 'removeProduct', id: 'P21' });
+    expect(removed.products.find((p) => p.id === 'P12')!.preSmgId).toBeUndefined();
+    const unflagged = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P22', patch: { isPreSmg: false } });
+    expect(unflagged.products.find((p) => p.id === 'P17')!.preSmgId).toBeUndefined();
+    expect(validateDataset(unflagged)).toEqual([]);
+    const bad = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P01', patch: { preSmgId: 'P02' } });
+    expect(validateDataset(bad)).toEqual(['Product P01: "P02" is not a pre-SMG']);
   });
 
   it('updates machine and product fields; reset restores the seed', () => {
@@ -158,10 +168,18 @@ describe('JSON round trip', () => {
     expect(parsed).toEqual({ ok: true, dataset: seedDataset });
   });
 
+  it('adds the A → B lane to files from before S07 (R48)', () => {
+    const parsed = parseDataset(JSON.stringify({ ...seedDataset, truckLanes: seedDataset.truckLanes.filter((l) => l.fromSiteId === 'B') }));
+    expect(parsed.ok && parsed.dataset.truckLanes.map((l) => `${l.id}:${l.fromSiteId}>${l.toSiteId}`)).toEqual(['B-A:B>A', 'A-B:A>B']);
+    // A file that has it keeps it as is.
+    const same = parseDataset(JSON.stringify(seedDataset));
+    expect(same.ok && same.dataset.truckLanes).toEqual(seedDataset.truckLanes);
+  });
+
   it('fills settings missing from older files with defaults', () => {
     const { planningYear: _omit, ...oldSettings } = seedDataset.settings;
     const parsed = parseDataset(JSON.stringify({ ...seedDataset, settings: { ...oldSettings, shiftHours: 6 } }));
-    expect(parsed.ok && parsed.dataset.settings).toEqual({ planningYear: 2027, shiftHours: 6, maxCampaignShifts: 21 });
+    expect(parsed.ok && parsed.dataset.settings).toEqual({ planningYear: 2027, shiftHours: 6, maxCampaignShifts: 21, priorities: seedDataset.settings.priorities });
   });
 
   it('upgrades pre-S04 files: no demand, holidays and maintenance as full dates', () => {

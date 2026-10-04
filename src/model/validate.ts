@@ -95,6 +95,13 @@ export function validateDataset(ds: Dataset): string[] {
     if (!(Number.isInteger(p.cratesPerPallet) && p.cratesPerPallet > 0)) err(`Product ${p.id}: crates per pallet must be a positive integer`);
   }
 
+  const byId = new Map(ds.products.map((p) => [p.id, p]));
+  for (const p of ds.products) {
+    if (!p.preSmgId) continue;
+    if (p.isPreSmg) err(`Product ${p.id}: a pre-SMG can't use a pre-SMG`);
+    else if (!byId.get(p.preSmgId)?.isPreSmg) err(`Product ${p.id}: "${p.preSmgId}" is not a pre-SMG`);
+  }
+
   const pairs = new Set<string>();
   for (const c of ds.capabilities) {
     const key = `${c.machineId}/${c.productId}`;

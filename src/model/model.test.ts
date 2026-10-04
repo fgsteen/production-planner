@@ -26,16 +26,21 @@ describe('seed dataset', () => {
     expect(sitesPerProduct.some((s) => s.size === 1 && s.has('A'))).toBe(true);
   });
 
-  it('has 20 products, each a distinct X-Y-Z combination (R18)', () => {
-    expect(seedDataset.products).toHaveLength(20);
+  it('has 20 SMGs and 2 pre-SMGs, each a distinct X-Y-Z combination (R18, R47)', () => {
+    expect(seedDataset.products).toHaveLength(22);
+    expect(seedDataset.products.filter((p) => p.isPreSmg).map((p) => p.id)).toEqual(['P21', 'P22']);
+    expect(seedDataset.products.flatMap((p) => (p.preSmgId ? [`${p.id}<${p.preSmgId}`] : []))).toEqual(['P12<P21', 'P17<P22']);
     expect(seedDataset.characteristics.map((c) => [c.name, c.variants.length])).toEqual([['X', 4], ['Y', 3], ['Z', 6]]);
     expect(seedDataset.products.every((p) => p.name === '')).toBe(true);
   });
 
-  it('has the three storage locations and a B → A truck lane', () => {
+  it('has the three storage locations, a B → A and an A → B truck lane', () => {
     expect(seedDataset.storageLocations.map((l) => `${l.siteId}:${l.accepts}`).sort()).toEqual(['A:inbound', 'A:local', 'B:local']);
     // 10 trucks/week rather than the default 5: the demo's B-only products need ~7.4 (S05).
-    expect(seedDataset.truckLanes).toEqual([expect.objectContaining({ fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 10, palletsPerTruck: 30 })]);
+    expect(seedDataset.truckLanes).toEqual([
+      expect.objectContaining({ fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 10, palletsPerTruck: 30 }),
+      expect.objectContaining({ fromSiteId: 'A', toSiteId: 'B', maxTrucksPerWeek: 3, palletsPerTruck: 30 }),
+    ]);
   });
 });
 

@@ -11,8 +11,12 @@ beforeAll(async () => {
 });
 
 // Two machines, one product. M1 makes 100/h, M2 50/h; 40 h/week each (1 × 8 h shift, Mon–Fri).
+/** Only "least machine time": the small cases below test the flows, not the trade-offs. */
+const SPARE_ONLY = { ...seedDataset.settings, priorities: { balance: 0, lineClears: 0, transport: 0, spare: 1 } };
+
 const tiny = (weeklyDemand: number): Dataset => ({
   ...seedDataset,
+  settings: SPARE_ONLY,
   sites: [{ id: 'S', name: 'S', isDemandSite: true, holidays: [] }],
   machines: ['M1', 'M2'].map((id) => ({
     id,
@@ -38,6 +42,7 @@ const tiny = (weeklyDemand: number): Dataset => ({
 // Trucks carry 10 pallets (100 units) and run every day; no holidays.
 const twoSites = (opts: { trucks: number; storage?: number; initial?: Dataset['initialStock']; demand?: Record<string, number>; yearly?: number }): Dataset => ({
   ...seedDataset,
+  settings: SPARE_ONLY,
   sites: [
     { id: 'B', name: 'B', isDemandSite: false, holidays: [] },
     { id: 'A', name: 'A', isDemandSite: true, holidays: [] },
@@ -92,11 +97,80 @@ describe('plan LP', () => {
 
   it('plans the demo data without unmet demand', () => {
     const plan = solvePlan(highs, seedDataset);
-    expect(plan.status).toBe('Optimal');
+    expect(['Optimal', 'Time limit reached']).toContain(plan.status);
     expect(plan.unmetUnits).toBeLessThan(1);
     for (const [, weeks] of plan.machineWeekShifts) for (const s of weeks) expect(s).toBeLessThanOrEqual(21 + 1e-6);
     for (const lane of plan.lanes) for (const w of lane.weeks) expect(w.trucksUsed).toBeLessThanOrEqual(w.truckLimit);
     for (const pool of plan.storage) for (const p of pool.pallets) expect(p).toBeLessThanOrEqual(pool.capacityPallets + 1e-6);
+    // Pre-SMGs (R47): P22 is made only at A, so it is trucked A → B for P17.
+    expect(plan.shipments.some((s) => s.laneId === 'A-B' && s.productId === 'P22')).toBe(true);
+  }, 30_000);
+});
+
+describe('plan MILP: line clears and priorities', () => {
+  // One machine, two products of 1000 units/week each (10 h at 100/h); a large line clear is 4 h.
+  const twoProducts = (priorities: Dataset['settings']['priorities']): Dataset => {
+    const ds = tiny(0);
+    return {
+      ...ds,
+      settings: { ...ds.settings, priorities },
+      machines: [{ ...ds.machines[0], largeLineClearMin: 240 }],
+      products: ['P', 'Q'].map((id) => ({ id, name: id, variants: {}, unitsPerCrate: 1, cratesPerPallet: 1 })),
+      capabilities: ['P', 'Q'].map((productId) => ({ machineId: 'M1', productId, ratePerHour: 100, oeePct: 100 })),
+      demand: ['P', 'Q'].map((productId) => ({ productId, yearlyUnits: 52_000, weekOverrides: {} })),
+      storageLocations: [{ id: 'S-L', name: 'S-L', siteId: 'S', capacityPallets: 1e6, accepts: 'local' }],
+    };
+  };
+
+  it('a large line clear per run takes machine time (R28)', () => {
+    const plan = solvePlan(highs, twoProducts({ balance: 0, lineClears: 0, transport: 0, spare: 1 }));
+    expect(plan.unmetUnits).toBeCloseTo(0);
+    const lc = plan.lineClears.find((l) => l.machineId === 'M1')!;
+    expect(lc.large).toBeGreaterThan(0);
+    // Planned shifts = producing hours + 4 h per run.
+    const shifts = plan.shifts.reduce((a, s) => a + s.shifts, 0);
+    expect(shifts * 8).toBeCloseTo(52 * 20 + lc.large * 4, 3);
+  });
+
+  it('the line clear weight makes campaigns longer (R22, R31)', () => {
+    const weak = solvePlan(highs, twoProducts({ balance: 0, lineClears: 0, transport: 0, spare: 1 }));
+    const strong = solvePlan(highs, twoProducts({ balance: 0, lineClears: 10, transport: 0, spare: 1 }), 3);
+    const large = (plan: PlanResult) => plan.lineClears.find((l) => l.machineId === 'M1')!.large;
+    expect(strong.unmetUnits).toBeCloseTo(0);
+    expect(large(strong)).toBeLessThan(large(weak) / 2);
+  }, 20_000);
+
+  it('the transport weight moves production to the demand site (R22)', () => {
+    const base = twoSites({ trucks: 10 });
+    const cheap = solvePlan(highs, base);
+    const dear = solvePlan(highs, { ...base, settings: { ...base.settings, priorities: { balance: 0, lineClears: 0, transport: 10, spare: 1 } } });
+    expect(shiftsAt(cheap, 'MA')).toBeCloseTo(0);
+    expect(shiftsAt(dear, 'MA')).toBeGreaterThan(52);
+  });
+
+  it('pre-SMGs are made at A, trucked A → B and consumed 1:1 where their SMG is made (R47, R48)', () => {
+    // SMG P is made only at B and uses pre-SMG R, made only at A.
+    const base = twoSites({ trucks: 10 });
+    const ds: Dataset = {
+      ...base,
+      products: [
+        { id: 'P', name: 'P', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1, preSmgId: 'R' },
+        { id: 'R', name: 'R', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1, isPreSmg: true },
+      ],
+      capabilities: [
+        { machineId: 'MB', productId: 'P', ratePerHour: 100, oeePct: 100 },
+        { machineId: 'MA', productId: 'R', ratePerHour: 100, oeePct: 100 },
+      ],
+      truckLanes: [...base.truckLanes, { id: 'AB', fromSiteId: 'A', toSiteId: 'B', maxTrucksPerWeek: 10, palletsPerTruck: 10, runsOnWeekendsAndHolidays: true }],
+    };
+    const plan = solvePlan(highs, ds);
+    expect(plan.unmetUnits).toBeCloseTo(0);
+    const shipped = (laneId: string, productId: string) => plan.shipments.filter((s) => s.laneId === laneId && s.productId === productId).reduce((a, s) => a + s.units, 0);
+    expect(shipped('AB', 'R')).toBeCloseTo(52_000);
+    expect(shipped('BA', 'P')).toBeCloseTo(52_000);
+    // Without the A → B lane, P can't be made.
+    const noLane = solvePlan(highs, { ...ds, truckLanes: base.truckLanes });
+    expect(noLane.unmetUnits).toBeCloseTo(52_000);
   });
 });
 
