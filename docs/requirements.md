@@ -52,6 +52,8 @@ Terms: see the glossary in [domain.md](domain.md).
 | R39 | Show which constraints are the bottleneck (e.g. A in-factory storage full, trucks maxed out, machine capacity), and what relaxing them would gain (solver shadow prices / what-if). | S | agreed | S01 |
 | R33 | Flow diagram (Sankey) with numbers: product → machine → site → A. | M | agreed | S01 |
 | R34 | Shift-level timeline of the plan per machine. | S | idea | S01 |
+| R42 | Week-by-week plan per machine: for each machine and ISO week, which products run and how many shifts each, plus utilisation. | M | agreed | S04 |
+| R43 | Transport breakdown B → A: per ISO week and product, the quantity shipped (units, pallets) and trucks used vs the truck limit. | M | agreed | S04 |
 | R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
 

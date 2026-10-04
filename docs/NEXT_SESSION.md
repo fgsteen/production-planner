@@ -41,14 +41,20 @@ weights.** This covers R22, R27–R29 and R19, and moves R21 towards done.
      needed.
 4. Priority weights (R22): line clear time, transport, load balance, spare capacity. Add a small
    control panel on the Plan page and re-solve on change.
-5. Plan page output:
-   - utilisation per machine per week (a heatmap, as a first step towards R30);
-   - line clears per machine (R31);
-   - trucks per week (R38).
+5. Plan page output (user request, end of S04):
+   - **week-by-week plan per machine (R42):** per machine a row of weeks showing which products
+     run and their shifts. Use a stacked bar per week, coloured by product, with a table view.
+     Utilisation per week falls out of this (R30);
+   - **transport breakdown B → A (R43):** per week and product, units and pallets shipped, and
+     trucks used vs the limit (R32, R38). This needs the shipment variables from step 2;
+   - line clears per machine (R31).
 6. Tests:
    - LP unit tests on tiny cases: storage cap forces just-in-time; truck cap forces A production;
      a line clear makes campaigns longer;
-   - e2e: change a weight and see the plan change.
+   - e2e: change a weight and see the plan change; the weekly machine view and the transport
+     table show data for the demo plan.
+7. If time runs short, R42 and R43 take priority over the priority-weights UI (step 4). They
+   were asked for explicitly.
 
 ### Questions for the user
 See [open-questions.md](open-questions.md):
