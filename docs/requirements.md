@@ -35,8 +35,8 @@ Terms: see the glossary in [domain.md](domain.md).
 | R20 | Input a yearly forecast: required quantity per product, in units. | M | done | S01 |
 | R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread by A's open days — S04/S05, ADR 0004/0005). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
 | R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | done | S01 |
-| R47 | **Pre-SMG products:** regular products (X-Y-Z) flagged pre-SMG, made at A or B. An SMG may use one pre-SMG, 1:1, consumed in the same week where the SMG is made (only B in the demo). Pre-SMGs have no demand of their own and share the B warehouse (S07, ADR 0007). | M | done | after S06 |
-| R48 | Truck lane A → B for pre-SMG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. Demo: 3 trucks × 30 pallets, weekdays (S07). | M | done | after S06 |
+| R47 | **Pre-SFG products:** regular products (X-Y-Z) flagged pre-SFG, made at A or B. An SFG may use one pre-SFG, 1:1, consumed in the same week where the SFG is made (only B in the demo). Pre-SFGs have no demand of their own and share the B warehouse (S07, ADR 0007). | M | done | after S06 |
+| R48 | Truck lane A → B for pre-SFG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. Demo: 3 trucks × 30 pallets, weekdays (S07). | M | done | after S06 |
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. Weekly cap (S05, ADR 0005). | M | done | S01 |
 | R19 | Respect max campaign length. | M | agreed | S01 |
 | R28 | Line clear time reduces the producing time of the shift it occurs in. Weekly MILP: a large clear per run, a small one per further lot (S07, ADR 0007). | M | done | S01 |

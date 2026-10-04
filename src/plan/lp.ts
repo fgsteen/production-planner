@@ -1,18 +1,18 @@
 // Planning MILP (ADR 0003, 0005, 0007): machine-hours per product × machine × ISO week, a binary
 // "runs this week" per product × machine × week that costs a large line clear, stock per storage
-// pool, shipments on the truck lanes, pre-SMG consumption, and penalised unmet demand. The goals
+// pool, shipments on the truck lanes, pre-SFG consumption, and penalised unmet demand. The goals
 // are weighted by the dataset's priorities (R22).
 //
 // Storage pools: each site has one *local* pool (its storage locations that accept local goods,
 // capacities summed) and, if it is the demand site or has locations that accept trucked goods, an
 // *inbound* pool. Goods trucked to a site without an inbound pool go into its local pool (so at B,
-// pre-SMGs from A share the B warehouse with B's own goods, R47).
+// pre-SFGs from A share the B warehouse with B's own goods, R47).
 //
 //   hours[p,m,w] ≥ 0        producing time of machine m on product p in week w
 //   run[p,m,w] ∈ {0,1}      m makes p in week w: one large line clear
 //   stock[p,k,w] ≥ 0        units of p in pool k at the end of week w
 //   ship[p,l,w]  ≥ 0        units of p trucked on lane l in week w (lanes to a non-demand site
-//                           carry pre-SMGs only)
+//                           carry pre-SFGs only)
 //   draw[p,k,w]  ≥ 0        units of p taken from pool k by consumption at its site
 //   short[p,w]   ≥ 0        demand of p in week w that is not met
 //   U ≥ 0                   the busiest machine's yearly utilisation
@@ -24,8 +24,8 @@
 //
 //   busy[m,w] ≤ available hours;   hours ≤ max producing hours × run
 //   balance:  stock[w-1] + made (local pools) + shipped in − shipped out − draw = stock[w]
-//   consumption at site s:  Σ_k∈s draw[p,k,w] (+ short) = demand          (SMGs, demand site)
-//                                                        + Σ_{q uses p} made of q at s   (pre-SMGs)
+//   consumption at site s:  Σ_k∈s draw[p,k,w] (+ short) = demand          (SFGs, demand site)
+//                                                        + Σ_{q uses p} made of q at s   (pre-SFGs)
 //   Σ_p stock / unitsPerPallet ≤ pool capacity;  Σ_p ship / unitsPerPallet ≤ trucks × pallets/truck
 //   Σ_w busy[m,w] ≤ U × available hours of m in the year
 //
@@ -111,7 +111,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
   const lc = new Map(ds.machines.map((m) => [m.id, lineClearHours(m, ds.settings)]));
   const caps = ds.capabilities.filter((c) => pIdx.has(c.productId) && mIdx.has(c.machineId) && effectiveRate(c) > 0);
   const demandSite = ds.sites.find((s) => s.isDemandSite)!;
-  const isPre = (id: Id) => !!products.get(id)?.isPreSmg;
+  const isPre = (id: Id) => !!products.get(id)?.isPreSfg;
   const pools = storagePools(ds);
   const poolsAt = (siteId: Id) => pools.flatMap((pl, k) => (pl.siteId === siteId ? [k] : []));
   const localPool = new Map(pools.flatMap((pl, k) => (pl.kind === 'local' ? [[pl.siteId, k] as const] : [])));
@@ -140,9 +140,9 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
     initial.set(key, (initial.get(key) ?? 0) + s.units);
   }
 
-  // Who consumes what where: SMG demand at the demand site, pre-SMGs where their SMGs are made.
-  const users = new Map<Id, Id[]>(); // pre-SMG → SMGs that use it
-  for (const p of ds.products) if (p.preSmgId && p.preSmgId !== p.id && isPre(p.preSmgId)) users.set(p.preSmgId, [...(users.get(p.preSmgId) ?? []), p.id]);
+  // Who consumes what where: SFG demand at the demand site, pre-SFGs where their SFGs are made.
+  const users = new Map<Id, Id[]>(); // pre-SFG → SFGs that use it
+  for (const p of ds.products) if (p.preSfgId && p.preSfgId !== p.id && isPre(p.preSfgId)) users.set(p.preSfgId, [...(users.get(p.preSfgId) ?? []), p.id]);
   /** Capabilities whose output consumes the product at the site; `null` if it isn't consumed there. */
   const consumers = (productId: Id, siteId: Id) => {
     if (!isPre(productId)) return siteId === demandSite.id ? [] : null;
@@ -192,7 +192,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
     for (const p of ds.products) {
       const i = pIdx.get(p.id)!;
       const upp = unitsPerPallet(p);
-      if (!p.isPreSmg) {
+      if (!p.isPreSfg) {
         cols.set(un(i, w), { kind: 'short', productId: p.id, week: w });
         cost(un(i, w), SHORT);
       }
@@ -264,9 +264,9 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
         const uses = consumers(p.id, site.id);
         if (!uses) return;
         const terms = poolsAt(site.id).map((k) => `+ ${dr(i, k, w)}`);
-        if (!p.isPreSmg) terms.push(`+ ${un(i, w)}`);
+        if (!p.isPreSfg) terms.push(`+ ${un(i, w)}`);
         for (const c of uses) terms.push(`- ${num(effectiveRate(c))} ${h(pIdx.get(c.productId)!, mIdx.get(c.machineId)!, w)}`);
-        const demand = p.isPreSmg ? 0 : (pc?.weeklyDemand[w - 1] ?? 0);
+        const demand = p.isPreSfg ? 0 : (pc?.weeklyDemand[w - 1] ?? 0);
         rows.push(` use_${i}_${si}_${w}: ${terms.join(' ')} = ${num(demand)}`);
       });
     }

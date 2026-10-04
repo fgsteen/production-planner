@@ -97,9 +97,9 @@ export function validateDataset(ds: Dataset): string[] {
 
   const byId = new Map(ds.products.map((p) => [p.id, p]));
   for (const p of ds.products) {
-    if (!p.preSmgId) continue;
-    if (p.isPreSmg) err(`Product ${p.id}: a pre-SMG can't use a pre-SMG`);
-    else if (!byId.get(p.preSmgId)?.isPreSmg) err(`Product ${p.id}: "${p.preSmgId}" is not a pre-SMG`);
+    if (!p.preSfgId) continue;
+    if (p.isPreSfg) err(`Product ${p.id}: a pre-SFG can't use a pre-SFG`);
+    else if (!byId.get(p.preSfgId)?.isPreSfg) err(`Product ${p.id}: "${p.preSfgId}" is not a pre-SFG`);
   }
 
   const pairs = new Set<string>();

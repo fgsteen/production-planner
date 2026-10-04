@@ -26,10 +26,10 @@ describe('seed dataset', () => {
     expect(sitesPerProduct.some((s) => s.size === 1 && s.has('A'))).toBe(true);
   });
 
-  it('has 20 SMGs and 2 pre-SMGs, each a distinct X-Y-Z combination (R18, R47)', () => {
+  it('has 20 SFGs and 2 pre-SFGs, each a distinct X-Y-Z combination (R18, R47)', () => {
     expect(seedDataset.products).toHaveLength(22);
-    expect(seedDataset.products.filter((p) => p.isPreSmg).map((p) => p.id)).toEqual(['P21', 'P22']);
-    expect(seedDataset.products.flatMap((p) => (p.preSmgId ? [`${p.id}<${p.preSmgId}`] : []))).toEqual(['P12<P21', 'P17<P22']);
+    expect(seedDataset.products.filter((p) => p.isPreSfg).map((p) => p.id)).toEqual(['P21', 'P22']);
+    expect(seedDataset.products.flatMap((p) => (p.preSfgId ? [`${p.id}<${p.preSfgId}`] : []))).toEqual(['P12<P21', 'P17<P22']);
     expect(seedDataset.characteristics.map((c) => [c.name, c.variants.length])).toEqual([['X', 4], ['Y', 3], ['Z', 6]]);
     expect(seedDataset.products.every((p) => p.name === '')).toBe(true);
   });

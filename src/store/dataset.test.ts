@@ -46,14 +46,14 @@ describe('datasetReducer', () => {
     expect(validateDataset(ds)).toEqual(['Product P23: no machine can produce it']);
   });
 
-  it('unlinks SMGs from a pre-SMG that is removed or unflagged (R47)', () => {
+  it('unlinks SFGs from a pre-SFG that is removed or unflagged (R47)', () => {
     const removed = datasetReducer(seedDataset, { type: 'removeProduct', id: 'P21' });
-    expect(removed.products.find((p) => p.id === 'P12')!.preSmgId).toBeUndefined();
-    const unflagged = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P22', patch: { isPreSmg: false } });
-    expect(unflagged.products.find((p) => p.id === 'P17')!.preSmgId).toBeUndefined();
+    expect(removed.products.find((p) => p.id === 'P12')!.preSfgId).toBeUndefined();
+    const unflagged = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P22', patch: { isPreSfg: false } });
+    expect(unflagged.products.find((p) => p.id === 'P17')!.preSfgId).toBeUndefined();
     expect(validateDataset(unflagged)).toEqual([]);
-    const bad = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P01', patch: { preSmgId: 'P02' } });
-    expect(validateDataset(bad)).toEqual(['Product P01: "P02" is not a pre-SMG']);
+    const bad = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P01', patch: { preSfgId: 'P02' } });
+    expect(validateDataset(bad)).toEqual(['Product P01: "P02" is not a pre-SFG']);
   });
 
   it('updates machine and product fields; reset restores the seed', () => {
@@ -174,6 +174,12 @@ describe('JSON round trip', () => {
     // A file that has it keeps it as is.
     const same = parseDataset(JSON.stringify(seedDataset));
     expect(same.ok && same.dataset.truckLanes).toEqual(seedDataset.truckLanes);
+  });
+
+  it('reads pre-SFG fields saved under their S07 names (isPreSmg, preSmgId)', () => {
+    const old = { ...seedDataset, products: seedDataset.products.map(({ isPreSfg, preSfgId, ...p }) => ({ ...p, ...(isPreSfg && { isPreSmg: true }), ...(preSfgId && { preSmgId: preSfgId }) })) };
+    const parsed = parseDataset(JSON.stringify(old));
+    expect(parsed.ok && parsed.dataset.products).toEqual(seedDataset.products);
   });
 
   it('fills settings missing from older files with defaults', () => {

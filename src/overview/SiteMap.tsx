@@ -130,7 +130,7 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
   });
 
   for (const lane of ds.truckLanes) {
-    // Trucked goods arrive in the inbound store, or the local one if the site has none (pre-SMGs at B).
+    // Trucked goods arrive in the inbound store, or the local one if the site has none (pre-SFGs at B).
     const toDemand = ds.sites.find((s) => s.id === lane.toSiteId)?.isDemandSite;
     const from = ds.storageLocations.find((l) => l.siteId === lane.fromSiteId && l.accepts === 'local');
     const to =
@@ -144,7 +144,7 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
         animated: true,
         zIndex: 10,
         ...(!toDemand && { type: 'smoothstep' }),
-        label: `🚚 ${toDemand ? '' : 'pre-SMGs '}≤ ${lane.maxTrucksPerWeek} trucks/wk × ${lane.palletsPerTruck} pallets`,
+        label: `🚚 ${toDemand ? '' : 'pre-SFGs '}≤ ${lane.maxTrucksPerWeek} trucks/wk × ${lane.palletsPerTruck} pallets`,
         labelBgPadding: [8, 4],
         labelBgBorderRadius: 6,
         labelStyle: { fontSize: 12, fontWeight: 600, fill: 'var(--text)' },

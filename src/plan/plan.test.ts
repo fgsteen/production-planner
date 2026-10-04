@@ -102,7 +102,7 @@ describe('plan LP', () => {
     for (const [, weeks] of plan.machineWeekShifts) for (const s of weeks) expect(s).toBeLessThanOrEqual(21 + 1e-6);
     for (const lane of plan.lanes) for (const w of lane.weeks) expect(w.trucksUsed).toBeLessThanOrEqual(w.truckLimit);
     for (const pool of plan.storage) for (const p of pool.pallets) expect(p).toBeLessThanOrEqual(pool.capacityPallets + 1e-6);
-    // Pre-SMGs (R47): P22 is made only at A, so it is trucked A → B for P17.
+    // Pre-SFGs (R47): P22 is made only at A, so it is trucked A → B for P17.
     expect(plan.shipments.some((s) => s.laneId === 'A-B' && s.productId === 'P22')).toBe(true);
   }, 30_000);
 });
@@ -148,14 +148,14 @@ describe('plan MILP: line clears and priorities', () => {
     expect(shiftsAt(dear, 'MA')).toBeGreaterThan(52);
   });
 
-  it('pre-SMGs are made at A, trucked A → B and consumed 1:1 where their SMG is made (R47, R48)', () => {
-    // SMG P is made only at B and uses pre-SMG R, made only at A.
+  it('pre-SFGs are made at A, trucked A → B and consumed 1:1 where their SFG is made (R47, R48)', () => {
+    // SFG P is made only at B and uses pre-SFG R, made only at A.
     const base = twoSites({ trucks: 10 });
     const ds: Dataset = {
       ...base,
       products: [
-        { id: 'P', name: 'P', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1, preSmgId: 'R' },
-        { id: 'R', name: 'R', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1, isPreSmg: true },
+        { id: 'P', name: 'P', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1, preSfgId: 'R' },
+        { id: 'R', name: 'R', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1, isPreSfg: true },
       ],
       capabilities: [
         { machineId: 'MB', productId: 'P', ratePerHour: 100, oeePct: 100 },

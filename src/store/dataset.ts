@@ -135,8 +135,8 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
 
     case 'updateProduct': {
       let products = patchById(ds.products, action.id, action.patch);
-      // A product that stops being a pre-SMG is no longer used as one.
-      if (action.patch.isPreSmg === false) products = products.map((p) => (p.preSmgId === action.id ? { ...p, preSmgId: undefined } : p));
+      // A product that stops being a pre-SFG is no longer used as one.
+      if (action.patch.isPreSfg === false) products = products.map((p) => (p.preSfgId === action.id ? { ...p, preSfgId: undefined } : p));
       return { ...ds, products };
     }
     case 'addProduct': {
@@ -149,8 +149,8 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
     case 'removeProduct':
       return {
         ...ds,
-        // SMGs that used it as their pre-SMG no longer use one.
-        products: ds.products.filter((p) => p.id !== action.id).map((p) => (p.preSmgId === action.id ? { ...p, preSmgId: undefined } : p)),
+        // SFGs that used it as their pre-SFG no longer use one.
+        products: ds.products.filter((p) => p.id !== action.id).map((p) => (p.preSfgId === action.id ? { ...p, preSfgId: undefined } : p)),
         capabilities: ds.capabilities.filter((c) => c.productId !== action.id),
         demand: ds.demand.filter((d) => d.productId !== action.id),
         initialStock: ds.initialStock.filter((s) => s.productId !== action.id),
@@ -242,8 +242,10 @@ export function parseDataset(text: string): ParseResult {
     demand: (ds.demand ?? []).map((d) => (isObject(d) ? { ...d, weekOverrides: d.weekOverrides ?? {} } : d)),
     sites: ds.sites.map((s) => (isObject(s) ? { ...s, holidays: toMonthDays(s.holidays) } : s)),
     machines: ds.machines.map((m) => (isObject(m) ? { ...m, maintenance: toMonthDays(m.maintenance) } : m)),
-    // Files from before S07 have only the B → A lane: add the A → B lane for pre-SMGs (R48).
+    // Files from before S07 have only the B → A lane: add the A → B lane for pre-SFGs (R48).
     truckLanes: withReturnLane(ds),
+    // S07 builds wrote the pre-SFG fields as `isPreSmg` / `preSmgId` (renamed after S07).
+    products: withPreSfgNames(withCharacteristics(ds).products),
   };
   return { ok: true, dataset };
 }
@@ -254,6 +256,16 @@ function withReturnLane(ds: Dataset): TruckLane[] {
   if (!demand || !other || ds.truckLanes.some((l) => isObject(l) && l.fromSiteId === demand.id)) return ds.truckLanes;
   const id = ds.truckLanes.some((l) => isObject(l) && l.id === DEFAULT_LANE_A_B.id) ? nextId('A-B', ds.truckLanes.map((l) => l.id), 1) : DEFAULT_LANE_A_B.id;
   return [...ds.truckLanes, { ...DEFAULT_LANE_A_B, id, fromSiteId: demand.id, toSiteId: other.id }];
+}
+
+type S07Product = Product & { isPreSmg?: boolean; preSmgId?: Id };
+
+function withPreSfgNames(products: Product[]): Product[] {
+  return (products as S07Product[]).map((p) => {
+    if (!isObject(p) || (p.isPreSmg === undefined && p.preSmgId === undefined)) return p;
+    const { isPreSmg, preSmgId, ...rest } = p;
+    return { ...rest, ...(isPreSmg !== undefined && { isPreSfg: isPreSmg }), ...(preSmgId !== undefined && { preSfgId: preSmgId }) };
+  });
 }
 
 function withCharacteristics(ds: Dataset): Pick<Dataset, 'characteristics' | 'products'> {

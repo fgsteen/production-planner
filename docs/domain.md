@@ -13,7 +13,7 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 ## Glossary
 | Term | Meaning |
 | --- | --- |
-| **Semi-finished good / product** | What machines produce. |
+| **Semi-finished good (SFG) / product** | What machines produce. |
 | **Lot** | One manufacturing order: started, produced and finished as a unit. For now, max one shift's output per lot (may be relaxed later). |
 | **Small line clear** | Changeover between two lots of the **same** product. |
 | **Large line clear** | Changeover when the machine switches to a **different** product. |
@@ -24,7 +24,7 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 ## Sites
 - **The network is fixed** (user decision, S03): exactly two sites, B and A, and one truck lane
   B → A. Their properties are editable; sites and lanes can't be added or removed.
-  A second lane **A → B** carries pre-SMG products (S07, R48).
+  A second lane **A → B** carries pre-SFG products (S07, R48).
 - **Site B:** produces semi-finished goods only. Everything made at B is transported to A.
 - **Site A:** produces them too and hosts the next process step. Demand is consumed here.
 
@@ -33,10 +33,10 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 | --- | --- | --- |
 | **Site** | Geographical location (B, A). | name, is demand site, holidays (recurring `MM-DD` days) |
 | **StorageLocation** | Pallet storage at a site. | name, site, capacity (pallets), accepts (goods produced locally / goods arriving by truck) |
-| **TruckLane** | Transport B → A, and A → B for pre-SMGs (S07). | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
+| **TruckLane** | Transport B → A, and A → B for pre-SFGs (S07). | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
 | **Settings** | Global planning settings. | planning year (ISO week-year), max campaign length (shifts), shift length |
 | **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (recurring `MM-DD` days) |
-| **Product** | A semi-finished good (SMG), or a pre-SMG: an input consumed 1:1 where the SMGs that use it are made (S07). | custom name (empty = `X-Y-Z`), a variant of each characteristic, units per crate, crates per pallet, is pre-SMG, uses pre-SMG |
+| **Product** | A semi-finished good (SFG), or a pre-SFG: an input consumed 1:1 where the SFGs that use it are made (S07). | custom name (empty = `X-Y-Z`), a variant of each characteristic, units per crate, crates per pallet, is pre-SFG, uses pre-SFG |
 | **Characteristic** | One of three product dimensions, X, Y and Z, each with up to 8 variants. Names of characteristics and variants are editable. | name, variants |
 | **Capability** | Machine *can produce* product. Many-to-many. Some products are possible at both sites, some at only one. | machine, product, rate (units/h), OEE (%) |
 
@@ -75,7 +75,7 @@ Line clear times don't depend on the product for now; they are set per machine.
 | --- | --- | --- |
 | **A in-factory storage** | A | Only goods **produced at A**. |
 | **A warehouse** | A | Goods **arriving from B** by truck. |
-| **B warehouse** | B | Goods produced at B, awaiting loading on a truck to A, and pre-SMGs trucked in from A (shared capacity, S07). |
+| **B warehouse** | B | Goods produced at B, awaiting loading on a truck to A, and pre-SFGs trucked in from A (shared capacity, S07). |
 
 A-produced goods can't overflow into the A warehouse. The plan must make it visible when this
 limit is the bottleneck (R39).
@@ -95,13 +95,14 @@ B machines → B warehouse ──truck (≤ freq/week × 30 pallets)──▶ A 
 A machines ─────────────────────────────────────────────────▶ A in-factory ─┴→ consumption at A
 ```
 
-**Pre-SMG products** (user, after S06; not built yet; R47, R48):
-- a few products are inputs to SMGs: they are made on the same machine types, at A or B;
-- they are **consumed at B** to make SMGs that are already in the mix. Their demand at B follows
-  B's production of those SMGs;
-- those made at A travel **A → B** on a separate truck lane with its own limits;
-- quantities are much smaller than the SMGs'.
-- Open: the ratio per SMG, storage at B, timing, and the demo data (see open-questions.md).
+**Pre-SFG products** (user, after S06; built in S07, R47, R48,
+[ADR 0007](decisions/0007-line-clear-milp-and-warm-start.md)):
+- regular products (X-Y-Z) flagged pre-SFG, made on the same machines, at A or B;
+- an SFG may use one pre-SFG, **1:1**, consumed in the **same week** where the SFG is made
+  (only B in the demo). Pre-SFGs have no demand of their own;
+- those made at A travel **A → B** on a separate truck lane with its own limits, into the B
+  warehouse (shared with B's own output);
+- quantities are much smaller than the SFGs' (demo: 2 pre-SFGs, about 6 % of volume).
 
 ## Campaigns
 - **Max campaign length:** one **global** limit, in **shifts**: max consecutive shifts of one product

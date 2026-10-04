@@ -73,10 +73,10 @@ export interface Product {
   variants: Record<Id, Id>;
   unitsPerCrate: number;
   cratesPerPallet: number;
-  /** A pre-SMG (R47): an input consumed where SMGs are made, not demanded at the demand site. */
-  isPreSmg?: boolean;
-  /** The pre-SMG this SMG consumes, one unit per unit made, at the site that makes it (R47). */
-  preSmgId?: Id;
+  /** A pre-SFG (R47): an input consumed where SFGs are made, not demanded at the demand site. */
+  isPreSfg?: boolean;
+  /** The pre-SFG this SFG consumes, one unit per unit made, at the site that makes it (R47). */
+  preSfgId?: Id;
 }
 
 /** Machine can produce product. */

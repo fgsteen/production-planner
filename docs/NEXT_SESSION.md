@@ -10,13 +10,13 @@ _Written at the end of S07 (2026-10-04)._
     lot a small one.
   - **Goals:** four priority weights (sliders on the Plan page): balance 8, line clears 4,
     transport 2, spare 1.
-  - **Pre-SMGs and lanes:** pre-SMGs are consumed 1:1 where their SMG is made; there are lanes
+  - **Pre-SFGs and lanes:** pre-SFGs are consumed 1:1 where their SFG is made; there are lanes
     B → A and A → B.
   - **Solve:** a 3-stage warm start (relax and drop small runs → fix runs → MIP, gap 1 %, 6 s).
   - **Demo result:** about 6 s, 0 unmet, busiest machine about 80 %, about 1,040 large line
     clears, gap shown as about 21 %. The HiGHS bound is weak.
 - **Demo:**
-  - 20 SMGs and 2 pre-SMGs (P21 → P12, P22 → P17; P22 is made only at A, so it is trucked);
+  - 20 SFGs and 2 pre-SFGs (P21 → P12, P22 → P17; P22 is made only at A, so it is trucked);
   - demand of about 34 M units, cut by a fifth in S07.
 - **Plan page panels:**
   - priorities;
@@ -35,6 +35,20 @@ _Written at the end of S07 (2026-10-04)._
    clear each week, so campaigns across weeks look worse than they are.
 3. **Week 1 starts without stock** in the demo, which squeezes the first weeks.
 4. **Each solve takes about 6 s**, and every slider move or data edit waits for it.
+5. **Demand beyond capacity** (checked after S07, by scaling the demo's demand). A what-if like
+   "what if demand grows, where do we need machines?" is a core use, and the model stays
+   solvable: unmet demand is a penalised slack. Its answers are poor, though:
+   - **×1.3:** 0.2 % unmet, all of it P10. The solve took 12 s: the warm-start stages have no
+     time limit, only the MIP does.
+   - **×2:** 23 % unmet, as whole products. P07, P10, P11, P13 and P17 get **nothing**, because
+     every unit costs the same. The cheapest units to drop are on slow machines, so whole slow
+     products go.
+   - **The pre-SFG chain hides the real bottleneck.** P17 is fully unmet while its machine B3 has
+     spare time: its pre-SFG P22 can only be made on A4, which is full.
+   - **The UI shows only total unmet units.** It doesn't break them down by product or week, and
+     doesn't show which constraint binds (R39). `PlanResult.unmet` already has the data per
+     product and week.
+   - The reported gap is meaningless here (100 %).
 
 ## Proposed goal for S08
 **Make the plan respond to priorities and count line clears properly.**
@@ -58,7 +72,7 @@ _Written at the end of S07 (2026-10-04)._
 
 ### Questions for the user
 See [open-questions.md](open-questions.md):
-- may an SMG with a pre-SMG also be made at A?
+- may an SFG with a pre-SFG also be made at A?
 - should the demo start with some stock?
 - is counting campaigns per week acceptable?
 - transit time;
@@ -70,7 +84,7 @@ See [open-questions.md](open-questions.md):
 - **Group-by everywhere (rest of R44):** the weekly machine plan, transport and warehouse views
   (sum products per X/Y/Z variant).
 - **Excel (R60–R63):**
-  - a template with one tab per entity, including characteristics and the pre-SMG flag, with
+  - a template with one tab per entity, including characteristics and the pre-SFG flag, with
     dropdowns;
   - import with per-row errors;
   - export of data and of plan results;

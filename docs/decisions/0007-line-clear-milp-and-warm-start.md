@@ -7,7 +7,7 @@
 The S04–S06 LP had no line clears and only one goal, least machine time. S07 adds the following:
 - line clears (R23, R28, R31);
 - priority weights (R22);
-- pre-SMGs consumed at B (R47) and an A → B lane (R48).
+- pre-SFGs consumed at B (R47) and an A → B lane (R48).
 
 ## Decision
 **Model** (`src/plan/lp.ts`):
@@ -28,13 +28,13 @@ The S04–S06 LP had no line clears and only one goal, least machine time. S07 a
     just in time.
   - Defaults (user, S07): balance 8, line clears 4, transport 2, spare 1. They are stored in
     `settings.priorities`.
-- **Pre-SMGs:**
-  - a product flagged `isPreSmg` has no demand of its own;
-  - an SMG with `preSmgId` consumes one unit of it per unit made, in the same week, at the site
-    that makes the SMG.
-  - Goods trucked to a site without an inbound store go into its local store, so pre-SMGs share
+- **Pre-SFGs:**
+  - a product flagged `isPreSfg` has no demand of its own;
+  - an SFG with `preSfgId` consumes one unit of it per unit made, in the same week, at the site
+    that makes the SFG.
+  - Goods trucked to a site without an inbound store go into its local store, so pre-SFGs share
     the B warehouse (user).
-  - A lane into a non-demand site carries pre-SMGs only.
+  - A lane into a non-demand site carries pre-SFGs only.
 
 **Solve** (`src/plan/solve.ts`). HiGHS alone found only very poor plans within 20 s, with millions
 of units unmet, because the relaxation is weak. So the solve is warm-started:

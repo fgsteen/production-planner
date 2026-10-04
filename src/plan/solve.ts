@@ -47,7 +47,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
       mdl.clearSolver(); // a warm start from the last basis can take minutes; a fresh solve takes ~1 s
       mdl.run();
       const sol = Float64Array.from(mdl.getSolution().colValue);
-      // A round that leaves demand unmet (e.g. no early runs left for a pre-SMG chain) is undone.
+      // A round that leaves demand unmet (e.g. no early runs left for a pre-SFG chain) is undone.
       if (unmet(sol) > baseUnmet + 1) {
         for (const k of lastDropped) upper[k] = 1;
         mdl.changeColsBounds(sel, new Float64Array(runs.length), upper);

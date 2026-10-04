@@ -80,8 +80,8 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
   const demandOf = (productId: string) => dataset.demand.find((d) => d.productId === productId);
   const checkOf = new Map(check.products.map((p) => [p.productId, p]));
   const [groupBy, setGroupBy] = useState<string | null>(null);
-  // Pre-SMGs have no demand of their own: B consumes them (R47).
-  const smgs = dataset.products.filter((p) => !p.isPreSmg);
+  // Pre-SFGs have no demand of their own: B consumes them (R47).
+  const sfgs = dataset.products.filter((p) => !p.isPreSfg);
   if (groupBy) return <GroupedWeeklyTable dataset={dataset} check={check} groupBy={groupBy} setGroupBy={setGroupBy} />;
 
   return (
@@ -95,7 +95,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
           <thead className="sticky top-0 z-10 bg-surface">
             <tr>
               <th className="border-b border-line px-2 py-1.5 text-left font-medium text-muted">Week</th>
-              {smgs.map((p) => (
+              {sfgs.map((p) => (
                 <th key={p.id} className="min-w-[5.5rem] whitespace-nowrap border-b border-line px-1 py-1.5 text-right font-medium" title={p.id}>
                   <span className="inline-flex items-center gap-1">
                     <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(dataset.products.indexOf(p)) }} />
@@ -106,7 +106,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
             </tr>
             <tr>
               <th className="border-b border-line px-2 py-1 text-left font-medium text-muted">Year total</th>
-              {smgs.map((p) => {
+              {sfgs.map((p) => {
                 const d = demandOf(p.id);
                 const pins = d ? Object.keys(d.weekOverrides).length : 0;
                 return (
@@ -138,7 +138,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
                 <td className="tabular whitespace-nowrap border-b border-line/50 px-2 py-0.5 text-muted">
                   <span className="font-medium text-ink">W{week}</span> <span className="text-faint">{shortDate(isoWeekRange(year, week).from)}</span>
                 </td>
-                {smgs.map((p) => {
+                {sfgs.map((p) => {
                   const pc = checkOf.get(p.id)!;
                   const pinned = demandOf(p.id)?.weekOverrides[week];
                   const value = pc.weeklyDemand[week - 1];
@@ -169,7 +169,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
 function GroupedWeeklyTable({ dataset, check, groupBy, setGroupBy }: { dataset: Dataset; check: CapacityCheck; groupBy: string; setGroupBy: (v: string | null) => void }) {
   const year = dataset.settings.planningYear;
   const checkOf = new Map(check.products.map((p) => [p.productId, p]));
-  const groups = groupProducts(dataset, dataset.products.filter((p) => !p.isPreSmg), groupBy);
+  const groups = groupProducts(dataset, dataset.products.filter((p) => !p.isPreSfg), groupBy);
   const sum = (ids: string[], f: (pc: ProductCheck) => number) => ids.reduce((a, id) => a + f(checkOf.get(id)!), 0);
   return (
     <Panel
@@ -234,7 +234,7 @@ function ProductCheckTable({ dataset, check }: { dataset: Dataset; check: Capaci
         </thead>
         <tbody>
           {check.products.map((p, i) => {
-            if (dataset.products[i]?.isPreSmg) return null;
+            if (dataset.products[i]?.isPreSfg) return null;
             const pct = p.maxYearlyOutput > 0 ? (100 * p.yearlyDemand) / p.maxYearlyOutput : p.yearlyDemand > 0 ? Infinity : 0;
             const status =
               p.shortfall > 0.5 ? (
