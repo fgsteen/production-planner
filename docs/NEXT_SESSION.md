@@ -1,52 +1,63 @@
 # Next session
 
-_Written at the end of S03 (2026-10-04)._
+_Written at the end of S04 (2026-10-04)._
 
 ## Where we are
-- **Live:** https://fgsteen.github.io/production-planner/. It redeploys on every push to `main`
-  (`.github/workflows/pages.yml`).
-- **Master data is fully editable** on the "Master data" page (`#data`), with five tabs: Machines,
-  Products, Capabilities, Sites & logistics, Settings.
-  - Edits are saved to localStorage and validated live (problems banner + nav badge).
-  - Export/import as JSON; reset to demo data.
-- Store: `src/store/` (pure reducer + context). Edit cells: `src/ui/cells.tsx`.
-- `settings.planningYear` (default 2027) drives the overview's available shifts.
-- An `ErrorBoundary` lets the user recover from saved data that crashes rendering.
-- `npm test` is green: 5 tooling tests, typecheck, 32 unit tests and 14 e2e tests.
+- **Live:** https://fgsteen.github.io/production-planner/. It redeploys on every push to `main`.
+- **Pages:** Overview, Master data (`#data`), Demand (`#demand`) and Plan (`#plan`).
+- **Time grid:** ISO weeks; the planning year is the ISO week-year
+  ([ADR 0004](decisions/0004-weekly-demand-iso-weeks.md)).
+- **Holidays and maintenance** are recurring `MM-DD`.
+- **Demand:** a yearly total per product plus pinned weeks (`Dataset.demand`). The rest of the
+  total spreads evenly.
+- **Capacity check** (`src/model/demand.ts`):
+  - shortfall per product;
+  - peak weeks that need stock built earlier;
+  - estimated machine load.
+- **Plan** (`src/plan/`): a continuous HiGHS LP in a Web Worker, with hours per
+  product × machine × week, one stock per product and penalised unmet demand. It has no line
+  clears, storage locations, trucks or priorities yet. The demo data solves in ~65 ms.
+- ADR 0003 (MILP with HiGHS) is accepted.
+- `npm test` is green: 5 tooling tests, typecheck, 51 unit tests and 17 e2e tests.
 
-## Proposed goal for S04
-**Demand input + capacity check + first HiGHS plan (no line clears yet).**
-Covers R20 and R26, the start of R21, and R35.
+## Proposed goal for S05
+**Make the plan realistic: line clears, storage locations and trucks in the model, plus priority
+weights.** This covers R22, R27–R29 and R19, and moves R21 towards done.
 
 ### First steps
-0. **Recurring holidays/maintenance (R9, ~10 min).** User decision: they repeat every year.
-   - Recommended: store them as `MM-DD`. `parseDataset` and `loadDataset` convert old
-     `YYYY-MM-DD` values by dropping the year. `availableShifts` matches on month-day within the
-     planning year. Validation: real month-day; `02-29` only counts in leap years.
-   - The UI lists dates as `12-25`. Update the seed, unit tests and the holiday e2e test.
-1. Ask the user:
-   - Demand entry: yearly total per product with an optional monthly split (12 columns), or
-     monthly only?
-   - Demand units: units, crates or pallets?
-2. Add `demand` to `Dataset` (per product per month), with editing on a new "Demand" page and
-   validation. Old JSON files without `demand` get an empty default in `parseDataset`.
-3. Capacity check, before any solver: per product, demand vs the max output of its capable
-   machines; per machine, the load if spread evenly. Flag demand that can't be met (R35).
-4. Spike HiGHS in the browser (`highs` npm package, WASM):
-   - a tiny LP (product × machine × month shifts, capacity per machine-month, meet demand);
-   - run it in a Web Worker;
-   - write ADR 0003 (planning engine) as accepted, or amend it.
-5. Tests: unit tests for the capacity check and the LP builder (tiny instance, known optimum);
-   e2e: enter demand, see the plan summary.
+1. Ask the user the open questions below, especially the default priorities and initial stock.
+2. Model the stock per location (ADR 0003 balance equations):
+   - B warehouse, A in-factory and A warehouse;
+   - shipped B → A per week ≤ trucks/week × pallets/truck. Truck days follow the
+     weekend/holiday toggle; whether that needs per-day detail or a weekly cap is enough is an
+     open question;
+   - storage in pallets ≤ capacity. Products convert via units per pallet.
+3. Line clears:
+   - each week a binary `run[p,m,w]` says whether p runs on m in w, and
+     `hours ≤ available × run`;
+   - each run costs one large line clear;
+   - the number of lots is an integer, with lot size ≤ one shift's output (R23);
+   - check solve time on the demo data and keep it interactive. Use a gap limit or time limit if
+     needed.
+4. Priority weights (R22): line clear time, transport, load balance, spare capacity. Add a small
+   control panel on the Plan page and re-solve on change.
+5. Plan page output:
+   - utilisation per machine per week (a heatmap, as a first step towards R30);
+   - line clears per machine (R31);
+   - trucks per week (R38).
+6. Tests:
+   - LP unit tests on tiny cases: storage cap forces just-in-time; truck cap forces A production;
+     a line clear makes campaigns longer;
+   - e2e: change a weight and see the plan change.
 
-### Done when
-- The user can enter demand and see which products/months are infeasible.
-- A first LP plan (shifts per product per machine per month) is computed in the browser and shown
-  as a simple table.
-- `npm test` is green.
+### Questions for the user
+See [open-questions.md](open-questions.md):
+- initial stock;
+- default priorities;
+- whether demand should follow A's working days;
+- truck granularity.
 
 ## Later sessions (rough order)
-- S05: line clears, storage, transport, priority weights (R22, R26–R29, R19). About page v1 (R50).
 - S06: plan visualisation (R30–R33, R37–R39): Sankey, utilisation heatmap, line clear time, stock
-  vs storage, trucks.
+  vs storage, trucks. About page v1 (R50).
 - S07: shift-level timeline (R34); compare plans (R25).
