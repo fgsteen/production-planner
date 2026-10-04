@@ -20,10 +20,5 @@ Answered questions move into the relevant doc (vision, domain, requirements, ADR
   - expandable groups (X → Y → Z);
   - a filter.
   Possibly a mix, per view.
-- **Characteristics and the model** (after S05): do the characteristics mean anything to the
-  planner?
-  - Is a line clear between products of the same X (or Y) smaller?
-  - Can a machine make all products of one X, so capabilities could be entered per characteristic?
-  - Does demand get entered per group?
 - **Excel and characteristics** (after S05): which dropdowns matter most in the template? Is it
   fine if a product is picked by its `X-Y-Z` name?
