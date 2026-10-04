@@ -28,6 +28,19 @@ _Written at the end of S05 (2026-10-04)._
 **Line clears and priorities: make the plan MILP with line clears, and add priority weights with a
 small control panel.** This covers R28, R23, R22 and R31, and moves R21 towards done.
 
+**Decide first: the order (new user input after S05).** The user asked for these new features:
+- product characteristics X/Y/Z and a ~20-product demo (R17, R18);
+- grouping so the views scale (R44);
+- PNG download per panel (R45);
+- Excel template, import and export (R60–R63).
+
+Consider doing **R17 + R18 before line clears**:
+- they change the data model and the demo;
+- the MILP's solve time should be tuned on the realistic 20-product size;
+- line clear times may depend on the characteristics (open question).
+
+Ask the user which comes first.
+
 ### First steps
 1. Ask the user for the default priority ranking (open question). It decides what the demo plan
    looks like: today B1 is ~4 % used and trucks are maxed in 34 weeks.
@@ -53,7 +66,23 @@ See [open-questions.md](open-questions.md):
 - whole pallets;
 - weekend consumption at A.
 
-## Later sessions (rough order)
+## Later sessions (rough order, to be confirmed with the user)
+- **Products at scale:**
+  - characteristics X/Y/Z with editable variants, products as `X-Y-Z` combinations, and a
+    ~20-product demo (R17, R18);
+  - grouping, filtering or expanding in the demand grid and the plan views (R44).
+  - Ask the open questions on grouping UX and on what the characteristics mean for the model.
+- **PNG download per panel (R45):** one shared panel wrapper with a download icon.
+  - Render to PNG at 2×, light theme. A DOM-to-image library (e.g. `html-to-image`) handles tables
+    and charts alike.
+  - This is small, so it could ride along with another session.
+- **Excel (R60–R63):**
+  - a template with one tab per entity and dropdowns (data validation);
+  - import with per-row errors;
+  - export of data and of plan results.
+  - Writing dropdowns needs a library that supports data validation (e.g. ExcelJS; SheetJS
+    Community can't write it). Record that choice in an ADR.
+  - Build it after R17, so the template includes the characteristics.
 - Visualisation (R30–R33, R37–R39): Sankey, utilisation heatmap, line clear time, stock vs
   storage, bottlenecks.
 - **About page (R50, `#about`).** Content comes from

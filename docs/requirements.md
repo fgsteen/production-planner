@@ -21,6 +21,8 @@ Terms: see the glossary in [domain.md](domain.md).
 | R14 | Edit all master data in the app (inline tables), saved in the browser; reset to demo data. | M | done | S03 |
 | R15 | Planning year setting (the plan covers 1 Jan – 31 Dec of that year). | M | done | S03 |
 | R16 | Initial stock per product per storage location (units at the start of week 1); default zero. | M | done | S05 |
+| R17 | Product characteristics X, Y, Z, each with 3–8 editable variants. A product is one existing combination; its name defaults to `X-Y-Z`. Characteristic and variant names are editable. | M | agreed | S05 |
+| R18 | Demo data at a realistic scale: ~20 products picked from the X × Y × Z combinations (X letters, Y numbers, Z tree names). | M | agreed | S05 |
 
 ## Overview
 | ID | Requirement | Prio | Status | Source |
@@ -57,6 +59,16 @@ Terms: see the glossary in [domain.md](domain.md).
 | R43 | Transport breakdown B → A: per ISO week and product, the quantity shipped (units, pallets) and trucks used vs the truck limit. | M | done | S04 |
 | R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
+| R44 | Scale to 20–50 products: tables and charts (demand grid, plan tables, weekly views) stay usable without wide sideways scrolling. Group or filter by characteristic X/Y/Z, or expand and collapse groups. | M | agreed | S05 |
+| R45 | Every panel with a chart or table has a small icon to download it as a PNG for presentations (2× resolution, light theme). | M | agreed | S05 |
+
+## Excel
+| ID | Requirement | Prio | Status | Source |
+| --- | --- | --- | --- | --- |
+| R60 | Downloadable, user-friendly Excel template: a separate tab per entity (machines, products, capabilities, sites & logistics, demand, initial stock, settings), with dropdown menus for references (site, product, machine, characteristic variants) and instructions. | M | agreed | S05 |
+| R61 | Import a filled-in workbook; problems are reported per tab and row. | M | agreed | S05 |
+| R62 | Export the current data to the same workbook format, so it can be edited in Excel and imported again. | M | agreed | S05 |
+| R63 | Export plan results to Excel: one tab per view (shifts per machine × product, weekly machine plan, transport B → A, …). | S | agreed | S05 |
 
 ## Hosting
 | ID | Requirement | Prio | Status | Source |

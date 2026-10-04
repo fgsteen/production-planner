@@ -35,10 +35,17 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 | **TruckLane** | Transport B → A. | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
 | **Settings** | Global planning settings. | planning year (ISO week-year), max campaign length (shifts), shift length |
 | **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (recurring `MM-DD` days) |
-| **Product** | A semi-finished good. | name, units per crate, crates per pallet |
+| **Product** | A semi-finished good. | name, units per crate, crates per pallet; *planned:* a variant of each characteristic X, Y, Z |
+| **Characteristic** *(planned)* | One of three product dimensions, X, Y and Z, each with 3–8 variants. Names of characteristics and variants are editable. | name, variants |
 | **Capability** | Machine *can produce* product. Many-to-many. Some products are possible at both sites, some at only one. | machine, product, rate (units/h), OEE (%) |
 
 Line clear times don't depend on the product for now; they are set per machine.
+
+**Product characteristics** (user, after S05; not built yet):
+- every product is one combination **X-Y-Z**, and its default name is that combination;
+- only some combinations exist (the demo will have about 20 of the X × Y × Z possibilities);
+- demo placeholders: X = letters, Y = numbers, Z = tree names (e.g. `B-2-Birch`);
+- views can group or filter products by a characteristic.
 
 ## Capacity
 - Available shifts per machine = calendar shifts − site holidays − machine maintenance.

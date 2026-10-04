@@ -17,6 +17,10 @@ machine load, changeover time and transport between sites.
   process step, so all demand lands at A and everything made at B is **transported B → A**.
 - Some products can be made at both sites, some only at one.
 - Demand is a **yearly forecast** of required quantity **per product**.
+- In reality there are **20–50 products** (after S05). Each product is a combination of three
+  **characteristics** (X, Y, Z); not every combination exists. Tables and charts must stay usable
+  at that scale, e.g. by grouping on a characteristic.
+- Every chart and table can be **downloaded as an image** for presentations.
 - When generating a plan, the user **chooses the priorities** (changeover time, transport, load balance, spare capacity).
 - **High-quality graphics** (flow diagrams with numbers, charts) are a core goal.
 - Hosted in the cloud, used through a URL; nothing to install.
@@ -35,6 +39,7 @@ enterprise system: no multi-tenant setup, no complex roles, no ERP integration.
 
 ## Non-goals (for now)
 - Finished-goods production and multi-step routings.
-- Data import or integration. The demo data uses generic names and fictional numbers.
+- System integration (ERP etc.). The demo data uses generic names and fictional numbers. File
+  exchange via **Excel** (template, import, export) *is* in scope (user, after S05).
 - Enterprise features: user management, permissions, audit.
 - Real-time shop-floor tracking.
