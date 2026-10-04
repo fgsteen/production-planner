@@ -1,94 +1,87 @@
 # Next session
 
-_Written at the end of S08 (2026-10-04)._
+_Written at the end of S09 (2026-10-04)._
+
+## Start with the plan
+Open by presenting the session plan (goal, in/out of scope, first steps, questions) and asking the
+user what to add to the todo list, for this session or later (CLAUDE.md, user S09).
 
 ## Where we are
 - **Live:** https://fgsteen.github.io/production-planner/. It redeploys on every push to `main`.
-- **Plan** (`src/plan/`; ADRs [0007](decisions/0007-line-clear-milp-and-warm-start.md) and
-  [0008](decisions/0008-campaigns-across-weeks.md)): a weekly MILP.
-  - **Line clears:** one large clear per **campaign**, which may span consecutive weeks (`cont`,
-    `alone`); each further lot costs a small clear.
+- **Plan** (`src/plan/`; ADRs [0007](decisions/0007-line-clear-milp-and-warm-start.md),
+  [0008](decisions/0008-campaigns-across-weeks.md) and
+  [0009](decisions/0009-fair-share-unmet-demand.md)): a weekly MILP.
+  - **Line clears:** one large clear per campaign, which may span weeks.
   - **Goals:** four priority weights: balance 8, line clears 4, transport 2, spare 1.
+  - **Unmet demand:** a fair share (R64, S09). The worst product's yearly share F comes first. Then
+    10 slices of each product's share, each costing twice the last.
+    - At 2× demand every demo product is 33–34 % short, 36 % of demand in total.
+    - Before S09: 24 % in total, with five products at 100 %.
   - **Warm start:**
-    1. relaxation without `cont`;
-    2. campaign cycles (low-volume pairs run every k-th week, k from the weight);
-    3. fix runs;
-    4. MIP with about 1 s left.
-- **Demo:** it starts with half a week of demand per SFG in the A warehouse (about 280 of its 600
-  pallets; user, after S08).
-- **Demo results** (`npm run measure:plan`):
+    1. relaxation, then campaign cycles;
+    2. fix runs;
+    3. MIP.
 
-  | Line clear weight | Large clears | Clear hours | Busiest machine |
-  | --- | --- | --- | --- |
-  | 0 | 753 | 3,100 | 69 % |
-  | 4 | 623 | 2,774 | 77 % |
-  | 10 | 527 | 2,503 | 89 % |
+    The optional extra solves stop at 40 % / 60 % of the time limit (S09).
+- **Solve times** (`npm run measure:plan`, line clear weight 4):
 
-  - About 6–7 s per solve. The gap shows "not proven", because the HiGHS bound is useless here.
+  | Demand | Solve time | Large clears |
+  | --- | --- | --- |
+  | 1× | 6.0 s | 629 |
+  | 1.3× | 6.4 s | 762 |
+  | 2× | 10.1 s | 592 |
+
+  - With `MEASURE_DEMAND`, the measure script also prints unmet % per product.
 - **Plan page:**
-  - solve progress (step x of 3, with a timer) and a Cancel button;
-  - a change during a solve restarts it;
-  - "Line clear hours" in the summary.
-- **Overview:** the A → B pre-SFG lane runs under the machines.
-- **PNG exports** follow the page's light or dark theme (R45).
-- `npm test` is green: tooling tests, typecheck, 77 unit tests and 25 e2e tests.
+  - an "Unmet demand" panel (only when demand is unmet): share, units and a 52-week strip per product;
+  - fully used machines are red in the shifts table.
+- **Validation (R66):** an SFG with a pre-SFG can't have a capability at the demand site.
+- **Open questions:** none open ([open-questions.md](open-questions.md) is empty).
+- **Tests:** `npm test` is green: 5 tooling tests, typecheck, 79 unit tests and 25 e2e tests.
 
 ## Known weak spots
-1. **Demand beyond capacity** (R64, user S08: fair share).
-   - At 2× demand 24 % is unmet, as whole products (P07, P10, P11, P13, P17 got nothing in S07),
-     because every unit costs the same.
-   - The UI shows only the total unmet units.
-2. **The warm-start stages have no time limit.** At 1.3× demand the fix stage alone took 9 s
-   (14 s in total).
-3. **The MIP stage rarely improves the start.** Plan quality comes from the cycle heuristic, tuned
-   by `CAMPAIGN_LOTS_PER_WEIGHT = 1` and `MAX_CYCLE = 8` in `solve.ts`.
-4. **Line clear counts need not fall with the weight:** the goal weighs hours. They did fall
-   with initial stock (753 → 623 → 527); without it, 754 → 635 → 676.
-5. **PNG export of the Overview map** leaves out the machine → store connector lines, though they
-   show on the page. Probably html-to-image and the React Flow edge styling; it predates S08.
+1. **Fairness costs units.** An equal share moves machine time to slow products, so at 2× demand
+   12 % more of total demand goes unmet. The user may want a middle way, e.g. a fairness weight.
+2. **Levelling is only exact for the worst group.** Products on a less-overloaded machine are
+   levelled to within a slice or two. Example: a fair 20/20 came out as 10/22.5 with a 4× rate gap.
+3. **The relax stage is a single LP.** At 2× demand it alone takes 5.6 s, beyond the 6 s target.
+4. **The MIP stage rarely improves the start**, and the gap shows as "not proven".
+5. **PNG export of the Overview map** leaves out the machine → store connector lines.
 
-## Proposed goal for S09
-**What-if for growing demand: fair-share unmet demand, and show where it falls short.**
-- **R64, the model:**
-  - add `F ≥ Σ_w short[p,w] ÷ demand_p` for each SFG;
-  - weight `F` well above the per-unit short cost, so the worst product's shortfall is minimised
-    first and the total second.
-  - Check at 1.3× and 2×: every product short by about the same percentage.
-- **The UI:**
-  - unmet demand per product, as a percentage and in units, and per week (`PlanResult.unmet`
-    already has the data);
-  - highlight machines at 100 %.
-- **Time limits** on the warm-start stages, e.g. a budget per stage, or capping the fix-stage
-  rounds.
+## Proposed goal for S10
+**Bottleneck view (R39): a ranked list of what limits the plan** (user S09: a ranked list, not
+shadow prices).
+- **Candidates to rank:**
+  - fully used machines (weeks at 100 %, and the share of the year);
+  - full storage pools (weeks at capacity);
+  - truck lanes at their limit (weeks maxed);
+  - unmet demand per product, with the machines that could make it.
+- **Order:** rank by impact, e.g. weeks binding × the units affected, or unmet units on the
+  machines involved. Read it straight from the `PlanResult` (no extra solve).
+- **If time is left:** R65, a line clear panel per machine (small and large counts, total hours).
+  `PlanResult.lineClears` already has the data.
 
 ### First steps
-1. Run `MEASURE_DEMAND=2 npm run measure:plan` and add unmet-per-product output to the script.
-2. Add `F` to `lp.ts`, then a unit test: two products on one overloaded machine, both short by
-   the same percentage.
-3. Add an unmet panel (use `Panel`), with an e2e test that raises demand.
+1. Sketch the ranking from `PlanResult`, as a pure function in `src/plan/` with unit tests.
+2. Add a "What limits the plan" panel (use `Panel`), near the summary.
+3. Add an e2e test at raised demand: the first entry is a machine at 100 %.
 
 ### Questions for the user
-- **Fair share:** the same percentage over the year, or per week too? A product short in one peak
-  week vs. spread out.
-- **Bottleneck view (R39):** shadow prices ("one more shift on A4 is worth X units") or a ranked
-  list. See [open-questions.md](open-questions.md).
-- **Still open from earlier:**
-  - may an SFG with a pre-SFG be made at A?
-  - transit time;
-  - whole pallets;
-  - weekend consumption at A;
-  - Excel dropdowns.
+- **Fairness vs total:** keep a strict fair share, or add a "fairness" slider that trades the
+  equal share against total units met?
+- **Bottleneck list:** what should the top entry say? Examples: "A4 full in 38 weeks" or "A4 full;
+  P10 and P13 are 30 % short".
 
 ## Later sessions (rough order, to be confirmed with the user)
+- **R65:** a line clear panel per machine (user S09), if S10 doesn't get to it.
 - **R19:** a max campaign length, as a limit on consecutive weeks with `cont`.
 - **Group-by everywhere (rest of R44):** the weekly machine plan, transport and warehouse views.
 - **Excel (R60–R63):**
-  - a template with dropdowns;
+  - a template with dropdowns wherever the choices are fixed, e.g. factory location (user S09);
   - import with per-row errors;
   - export;
   - ExcelJS, recorded in an ADR.
-- **Visualisation (R30, R33, R37–R39):** Sankey, utilisation heatmap, bottlenecks. New panels
-  should use `Panel`.
-- **About page (R50, `#about`):** condensed from ADRs 0003, 0005, 0007 and 0008. Include the
-  warm-start explanation given to the user in S08.
-- **Further features:** shift-level timeline (R34); compare plans (R25).
+- **Visualisation (R30, R33, R37, R38):** Sankey, utilisation heatmap.
+- **About page (R50, `#about`):** condensed from ADRs 0003, 0005, 0007, 0008 and 0009.
+- **Further features:** shift-level timeline (R34); compare plans (R25); transit time (much later,
+  user S09).
