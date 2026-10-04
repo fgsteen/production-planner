@@ -69,7 +69,8 @@ describe('datasetReducer: sites, storage, trucks, settings', () => {
   it('making a site the demand site clears the flag on the others', () => {
     const ds = datasetReducer(seedDataset, { type: 'updateSite', id: 'B', patch: { isDemandSite: true } });
     expect(ds.sites.map((s) => [s.id, s.isDemandSite])).toEqual([['B', true], ['A', false]]);
-    expect(validateDataset(ds)).toEqual([]);
+    // Only R66 objects: the SFGs with a pre-SFG are made at B, now the demand site.
+    expect(validateDataset(ds).every((e) => e.includes("uses a pre-SFG, so it can't be made at Site B"))).toBe(true);
   });
 
   it('adds, edits and removes storage; edits truck lanes and settings', () => {

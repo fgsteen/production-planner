@@ -107,7 +107,8 @@ test.describe('master data', () => {
     await expect(page.getByTestId('truck-row-B-A')).toContainText('210 pallets');
     await page.getByLabel('B is the demand site').check();
     await expect(page.getByLabel('A is the demand site')).not.toBeChecked();
-    await expect(page.getByTestId('problems')).toHaveCount(0);
+    // R66: the SFGs with a pre-SFG are made at B, which is now the demand site.
+    await expect(page.getByTestId('problems')).toContainText("uses a pre-SFG, so it can't be made at Site B");
     await page.screenshot({ path: 'test-results/screens/master-data-sites.png', fullPage: true });
 
     await page.getByRole('link', { name: 'Overview' }).click();
