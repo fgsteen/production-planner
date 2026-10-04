@@ -18,6 +18,8 @@
 //   draw[p,k,w]  ≥ 0        units of p taken from pool k by consumption at its site
 //   short[p,w]   ≥ 0        demand of p in week w that is not met
 //   U ≥ 0                   the busiest machine's yearly utilisation
+//   g[p,k] ∈ [0, 1/SEGMENTS] the k-th slice of SFG p's unmet share of its yearly demand
+//   F ≥ 0                   the largest unmet share of any SFG
 //
 // Line clears (R23, R28, ADR 0008): lots are at most one shift; every lot starts with a small line
 // clear, except the first of a campaign, which starts with a large one. A campaign is a run that
@@ -34,19 +36,32 @@
 //                                                        + Σ_{q uses p} made of q at s   (pre-SFGs)
 //   Σ_p stock / unitsPerPallet ≤ pool capacity;  Σ_p ship / unitsPerPallet ≤ trucks × pallets/truck
 //   Σ_w busy[m,w] ≤ U × available hours of m in the year
+//   unmet share (R64):  Σ_w short[p,w] = demand_p Σ_k g[p,k];   Σ_k g[p,k] ≤ F
 //
-//   minimise  SHORT·Σ short + balance·U + lineClears·LC/LC₀ + transport·pallets/D
+//   minimise  FAIR·F + SHORT·Σ_p,k 2^k g[p,k] demand_p/Dᵤ + balance·U + lineClears·LC/LC₀ + transport·pallets/D
 //             + spare·Σ(1+f)hours/H₀ + HOLD·Σ pallet-weeks/D
 // Each goal is scaled to about 0–1: LC₀ is one large line clear per machine-week, D the yearly
-// demand in pallets, H₀ the estimated machine-hours needed. Unmet demand costs far more than any
-// goal; a small holding cost makes production happen just in time.
+// demand in pallets, Dᵤ in units, H₀ the estimated machine-hours needed. Unmet demand costs far more
+// than any goal; a small holding cost makes production happen just in time.
+// Fair share (R64): unmet demand is spread so every SFG is short by about the same share, rather than
+// whole products going unmet because their units take longer to make. F (the worst share) comes
+// first, so the most-short products end up level; each further slice of a product's share costs twice
+// the last, which levels the products on other overloaded machines to within about one slice.
 import { effectiveRate, truckLimit, unitsPerPallet } from '../model/capacity';
 import type { CapacityCheck } from '../model/demand';
 import { DEFAULT_PRIORITIES } from '../model/seed';
 import type { Dataset, Id, Machine, Settings } from '../model/types';
 import { isoWeekRange } from '../model/weeks';
 
-const SHORT = 100;
+/** Cost of leaving all demand unmet, at the cheapest slice (≈ 0.3 per lot in the demo, far above any goal). */
+const SHORT = 1000;
+/** Slices of a product's unmet share, each costing twice the last. */
+export const SEGMENTS = 10;
+/**
+ * Cost of the worst product's unmet share. It must outweigh the dearest slice even when the products
+ * that share a machine differ in rate by 10×, so the worst share is levelled first.
+ */
+const FAIR = 10 * 2 ** SEGMENTS * SHORT;
 const HOLD = 0.05;
 /** Transport always costs a little, so goods are not trucked for nothing. */
 const MIN_TRANSPORT = 0.01;
@@ -160,6 +175,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
   };
 
   // Goal scales (each goal ≈ 0–1).
+  const Du = Math.max(1, check.products.reduce((a, pc) => a + (isPre(pc.productId) ? 0 : pc.yearlyDemand), 0));
   const D = Math.max(1, check.products.reduce((a, pc) => a + (isPre(pc.productId) ? 0 : pc.yearlyDemand / unitsPerPallet(products.get(pc.productId)!)), 0));
   const H0 = Math.max(1, check.machines.reduce((a, m) => a + m.neededHours, 0));
   const LC0 = Math.max(1, ds.machines.reduce((a, m) => a + weeks * lc.get(m.id)!.large, 0));
@@ -210,10 +226,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
     for (const p of ds.products) {
       const i = pIdx.get(p.id)!;
       const upp = unitsPerPallet(p);
-      if (!p.isPreSfg) {
-        cols.set(un(i, w), { kind: 'short', productId: p.id, week: w });
-        cost(un(i, w), SHORT);
-      }
+      if (!p.isPreSfg) cols.set(un(i, w), { kind: 'short', productId: p.id, week: w });
       pools.forEach((_, k) => {
         cols.set(st(i, k, w), { kind: 'stock', productId: p.id, pool: k, week: w });
         cost(st(i, k, w), HOLD / D / upp);
@@ -226,6 +239,24 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
     }
   }
   cost('U', Math.max(prio.balance, 1e-6));
+
+  // Unmet share per SFG (R64), in slices that cost twice the last, and the worst share F.
+  let fairCols = 0;
+  for (const p of ds.products) {
+    const yearly = check.products.find((x) => x.productId === p.id)?.yearlyDemand ?? 0;
+    if (p.isPreSfg || yearly <= 0) continue;
+    const i = pIdx.get(p.id)!;
+    const g = (k: number) => `g_${i}_${k}`;
+    const slices = Array.from({ length: SEGMENTS }, (_, k) => k);
+    for (const k of slices) {
+      cost(g(k), (SHORT * 2 ** k * yearly) / Du);
+      bounds.push(` 0 <= ${g(k)} <= ${num(1 / SEGMENTS)}`);
+    }
+    rows.push(` share_${i}: ${Array.from({ length: weeks }, (_, w) => `+ ${un(i, w + 1)}`).join(' ')} ${slices.map((k) => `- ${num(yearly)} ${g(k)}`).join(' ')} = 0`);
+    rows.push(` worst_${i}: ${slices.map((k) => `+ ${g(k)}`).join(' ')} - F <= 0`);
+    fairCols += SEGMENTS;
+  }
+  if (fairCols) cost('F', FAIR);
 
   // Machine capacity, run links and yearly utilisation.
   for (const m of ds.machines) {
@@ -330,7 +361,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
   const lp = ['Minimize', ` obj: ${wrap(obj)}`, 'Subject To', ...rows.map(wrap), ...(bounds.length ? ['Bounds', ...bounds] : []), ...(binaries.length ? ['Binary', ...binaries.map((b) => ` ${b}`)] : []), 'End'].join(
     '\n',
   );
-  return { lp, cols, pools, truckLimits, columnCount: cols.size + drawCols + aloneCols + 1, rowCount: rows.length, binaryCount: binaries.length, campaignHours };
+  return { lp, cols, pools, truckLimits, columnCount: cols.size + drawCols + aloneCols + fairCols + (fairCols ? 2 : 1), rowCount: rows.length, binaryCount: binaries.length, campaignHours };
 }
 
 export interface WeekShifts {

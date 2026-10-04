@@ -13,6 +13,13 @@ import { buildPlanLp, MIP_REL_GAP, readPlan, TIME_LIMIT_S, type PlanResult } fro
 
 /** Longest campaign cycle in weeks. */
 const MAX_CYCLE = 8;
+/**
+ * Time budgets, as shares of the time limit: past them the warm start skips its optional extra LP
+ * solves (shorter campaign cycles in step 1, more rounds of opening runs in step 2). Each LP itself
+ * runs to the end, so a large model can still take longer than the limit.
+ */
+const RELAX_BUDGET = 0.4;
+const FIX_BUDGET = 0.6;
 
 /**
  * Which runs a campaign cycle allows (1) or forbids (0). Runs are named `r_<product>_<machine>_<week>`.
@@ -74,6 +81,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, 
     const sel = { kind: 'set' as const, indices: Int32Array.from(runs) };
     const hoursOf = runs.map((i) => mdl.getColByName(`h_${names[i].slice(2)}`));
     const stages: Record<string, number> = {};
+    const elapsedS = () => (performance.now() - t0) / 1000;
     const lap = (stage: SolveStage) => (stages[stage] = Math.round(performance.now() - t0) / 1000 - Object.values(stages).reduce((a, b) => a + b, 0));
 
     // 1. Relaxation (runs continuous), then campaigns: a product–machine pair whose average weekly
@@ -102,6 +110,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, 
     const tolerance = unmet(relaxed) + 1e-3 * check.products.reduce((a, p) => a + p.yearlyDemand, 0);
     const relaxedHours = Float64Array.from(hoursOf, (h) => relaxed[h]);
     for (const scale of [1, 0.5, 0.25]) {
+      if (scale < 1 && elapsedS() > RELAX_BUDGET * timeLimitS) break;
       const cycles = campaignCycles(runs.map((i) => names[i]), (k) => relaxedHours[k], (k) => scale * (model.campaignHours.get(names[runs[k]]) ?? 0));
       if (!cycles.some((c) => c === 0)) break;
       cycles.forEach((c, k) => (upper[k] = c));
@@ -124,6 +133,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, 
     const lower = Float64Array.from(hoursOf, (h) => (relaxed[h] > 1e-6 ? 1 : 0));
     let start: Float64Array = new Float64Array();
     for (let round = 0; round < 6; round++) {
+      if (round > 0 && elapsedS() > FIX_BUDGET * timeLimitS) break;
       mdl.changeColsBounds(sel, lower, new Float64Array(runs.length).fill(1));
       if (alone.length) setAlone(lower, false);
       mdl.clearSolver(); // a warm start from the last basis can take minutes; a fresh solve takes ~1 s
@@ -157,8 +167,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, 
       mdl.changeColsIntegrality(aloneSel, new Int32Array(alone.length).fill(1));
     }
     mdl.setSolution({ colValue: start });
-    const elapsedS = (performance.now() - t0) / 1000;
-    mdl.options.set({ mip_rel_gap: MIP_REL_GAP, time_limit: Math.max(1, timeLimitS - elapsedS) });
+    mdl.options.set({ mip_rel_gap: MIP_REL_GAP, time_limit: Math.max(1, timeLimitS - elapsedS()) });
     const res = mdl.run();
     lap('mip');
     const optimal = res.modelStatus === S.optimal;

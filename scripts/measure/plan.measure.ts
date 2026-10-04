@@ -1,5 +1,6 @@
 // Solves the demo at several line clear weights and prints the trade-offs (S08). Not a test: it only
-// reports. Set MEASURE_WEIGHTS=0,4,10 and MEASURE_DEMAND=1.3 (demand scale) to vary it.
+// reports. Set MEASURE_WEIGHTS=0,4,10 and MEASURE_DEMAND=1.3 (demand scale) to vary it. With unmet
+// demand it also prints the unmet share per product (R64).
 import loadHighs from 'highs';
 import { it } from 'vitest';
 import { seedDataset } from '../../src/model/seed';
@@ -13,6 +14,7 @@ const scale = Number(env.MEASURE_DEMAND ?? 1);
 it('measures the demo plan', async () => {
   const highs = await loadHighs();
   const rows = [];
+  const unmetRows: Record<string, string | number>[] = [];
   for (const w of weights) {
     const ds: Dataset = {
       ...seedDataset,
@@ -32,6 +34,13 @@ it('measures the demo plan', async () => {
       s: (plan.solveMs / 1000).toFixed(1),
       ...(plan.stages ?? {}),
     });
+    if (plan.unmetUnits < 1) continue;
+    const byProduct = new Map<string, number>();
+    for (const u of plan.unmet) byProduct.set(u.productId, (byProduct.get(u.productId) ?? 0) + u.units);
+    const row: Record<string, string | number> = { weight: w };
+    for (const d of ds.demand) row[d.productId] = `${Math.round((100 * (byProduct.get(d.productId) ?? 0)) / Math.max(1, d.yearlyUnits))}%`;
+    unmetRows.push(row);
   }
   console.table(rows);
+  if (unmetRows.length) console.table(unmetRows);
 });

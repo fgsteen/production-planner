@@ -95,6 +95,26 @@ describe('plan LP', () => {
     expect(plan.unmetUnits).toBeCloseTo(52 * 1000);
   });
 
+  it('spreads unmet demand as a fair share across products (R64)', () => {
+    // M1 only (40 h/week): P at 100/h needs 20 h, Q at 25/h needs 80 h for 2000/week each. Making all
+    // of P would leave Q 75 % short; a fair share leaves both 60 % short (0.4 × 100 h = 40 h).
+    const base = tiny(0);
+    const ds: Dataset = {
+      ...base,
+      machines: base.machines.slice(0, 1),
+      products: ['P', 'Q'].map((id) => ({ id, name: id, variants: {}, unitsPerCrate: 1, cratesPerPallet: 1 })),
+      capabilities: [
+        { machineId: 'M1', productId: 'P', ratePerHour: 100, oeePct: 100 },
+        { machineId: 'M1', productId: 'Q', ratePerHour: 25, oeePct: 100 },
+      ],
+      demand: ['P', 'Q'].map((productId) => ({ productId, yearlyUnits: 2000 * 52, weekOverrides: {} })),
+    };
+    const plan = solvePlan(highs, ds);
+    const share = (id: string) => plan.unmet.filter((u) => u.productId === id).reduce((a, u) => a + u.units, 0) / (2000 * 52);
+    expect(share('P')).toBeCloseTo(0.6, 2);
+    expect(share('Q')).toBeCloseTo(0.6, 2);
+  });
+
   it('plans the demo data without unmet demand', () => {
     const plan = solvePlan(highs, seedDataset);
     expect(['Optimal', 'Time limit reached']).toContain(plan.status);
