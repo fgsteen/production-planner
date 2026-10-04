@@ -4,6 +4,7 @@ import type { Dataset } from '../model/types';
 import { useDataset } from '../store/DatasetContext';
 import { fmt, productColor } from '../ui/palette';
 import type { PlanResult } from './lp';
+import { TransportBreakdown, WeeklyMachinePlan } from './PlanDetails';
 import type { WorkerRequest, WorkerResponse } from './plan.worker';
 
 type State = { kind: 'solving' } | { kind: 'done'; plan: PlanResult } | { kind: 'error'; error: string };
@@ -43,8 +44,8 @@ export function PlanPage() {
       <div>
         <h2 className="text-base font-semibold tracking-tight">Draft plan {dataset.settings.planningYear}</h2>
         <p className="text-sm text-muted">
-          First solver run (HiGHS, in your browser): shifts per product per machine that meet weekly demand at the least machine time, building stock only
-          when needed. Not yet included: line clears, storage limits, trucks, priorities.
+          Solved in your browser (HiGHS): shifts per product per machine that meet weekly demand at the least machine time, building stock ahead only
+          as far as storage allows and trucking B goods to A within the weekly truck limit. Not yet included: line clears, priorities.
         </p>
       </div>
       {errors.length > 0 ? (
@@ -75,12 +76,13 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
 
   return (
     <>
-      <dl data-testid="plan-summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl data-testid="plan-summary" className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {(
           [
             ['Status', plan.status],
             ['Unmet demand', `${fmt(plan.unmetUnits)} units`],
             ['Shifts planned', fmt(totalShifts)],
+            ['Trucks B → A', fmt(plan.lanes.reduce((a, l) => a + l.weeks.reduce((b, w) => b + w.trucksUsed, 0), 0))],
             ['Solve time', `${fmt(plan.solveMs)} ms`],
           ] as const
         ).map(([label, value]) => (
@@ -152,6 +154,9 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
           </table>
         </div>
       </section>
+
+      <WeeklyMachinePlan dataset={dataset} plan={plan} check={check} />
+      <TransportBreakdown dataset={dataset} plan={plan} />
     </>
   );
 }

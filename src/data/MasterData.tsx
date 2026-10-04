@@ -11,6 +11,7 @@ const TABS = [
   ['products', 'Products'],
   ['capabilities', 'Capabilities'],
   ['sites', 'Sites & logistics'],
+  ['stock', 'Initial stock'],
   ['settings', 'Settings'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
@@ -40,6 +41,7 @@ export function MasterData() {
         {tab === 'products' && <ProductsTable />}
         {tab === 'capabilities' && <CapabilitiesTable />}
         {tab === 'sites' && <SitesAndLogistics />}
+        {tab === 'stock' && <InitialStockTable />}
         {tab === 'settings' && <SettingsForm />}
       </section>
     </div>
@@ -476,6 +478,53 @@ function SitesAndLogistics() {
             </td>
           </tr>
         ))}
+      </Table>
+    </div>
+  );
+}
+
+function InitialStockTable() {
+  const { dataset, dispatch } = useDataset();
+  const units = new Map(dataset.initialStock.map((s) => [`${s.locationId}/${s.productId}`, s.units]));
+  const locations = dataset.storageLocations;
+  const pallets = (locationId: string) =>
+    dataset.products.reduce((a, p) => a + (units.get(`${locationId}/${p.id}`) ?? 0) / unitsPerPallet(p), 0);
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted">
+        Units on hand at the start of week 1 of {dataset.settings.planningYear}. Empty means zero. The plan uses this stock before producing.
+      </p>
+      <Table head={['Product', ...locations.map((l) => l.name)]} numeric={locations.map((_, i) => i + 1)}>
+        {dataset.products.map((p, i) => (
+          <tr key={p.id} data-testid={`stock-row-${p.id}`}>
+            <td className="tabular whitespace-nowrap px-2 font-medium">
+              <span className="flex items-center gap-2" title={p.name}>
+                <Dot color={productColor(i)} />
+                {p.id}
+              </span>
+            </td>
+            {locations.map((l) => (
+              <td key={l.id}>
+                <NumberCell
+                  label={`${p.id} initial stock at ${l.id}`}
+                  value={units.get(`${l.id}/${p.id}`) ?? 0}
+                  onCommit={(v) => dispatch({ type: 'setInitialStock', locationId: l.id, productId: p.id, units: v })}
+                />
+              </td>
+            ))}
+          </tr>
+        ))}
+        <tr className="text-xs text-muted">
+          <td className="px-2 py-2">Pallets / capacity</td>
+          {locations.map((l) => {
+            const used = pallets(l.id);
+            return (
+              <td key={l.id} className="tabular pr-9 text-right" style={used > l.capacityPallets ? { color: '#e15759' } : undefined}>
+                {fmt(Math.ceil(used))} / {fmt(l.capacityPallets)}
+              </td>
+            );
+          })}
+        </tr>
       </Table>
     </div>
   );

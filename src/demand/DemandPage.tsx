@@ -23,7 +23,7 @@ export function DemandPage() {
       <div>
         <h2 className="text-base font-semibold tracking-tight">Demand {dataset.settings.planningYear}</h2>
         <p className="text-sm text-muted">
-          Units per ISO week. Enter a yearly total per product; it spreads evenly over the weeks. Type in a week to pin it — the rest of the total
+          Units per ISO week. Enter a yearly total per product; it spreads over the weeks in proportion to the days the demand site is open, so holiday weeks get less. Type in a week to pin it — the rest of the total
           spreads over the other weeks. Clear a pinned week to unpin it.
         </p>
       </div>

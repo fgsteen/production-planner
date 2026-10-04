@@ -16,3 +16,38 @@ test('solves a draft plan for the demo data in the browser', async ({ page }) =>
   await expect(summary).toContainText('Optimal', { timeout: 20_000 });
   await expect(summary).not.toContainText('Unmet demand0 units');
 });
+
+test('shows the weekly machine plan and the B → A transport breakdown', async ({ page }) => {
+  await page.goto('/#plan');
+  await expect(page.getByTestId('plan-summary')).toContainText('Optimal', { timeout: 20_000 });
+
+  // R42: one row per machine; the table view lists the weeks of the chosen machine.
+  const weekly = page.getByTestId('machine-week-plan');
+  await expect(weekly.getByTestId('machine-week-A1')).toContainText('% used');
+  await page.getByRole('button', { name: 'Table' }).click();
+  await weekly.getByRole('combobox', { name: 'Machine' }).selectOption('B2');
+  await expect(weekly.getByTestId('machine-week-table').locator('tbody tr')).toHaveCount(52);
+
+  // R43: trucks used vs the limit per week; Midsummer (Thu 24 June, week 25) costs A one weekday.
+  const transport = page.getByTestId('transport-B-A');
+  await expect(transport.getByTestId('transport-week-1')).toContainText('/ 10');
+  await expect(transport.getByTestId('transport-week-25')).toContainText('/ 8');
+  await transport.getByRole('button', { name: 'Units' }).click();
+  await expect(transport.getByTestId('transport-summary')).toContainText('Units shipped');
+  await transport.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/screens/plan-details.png', fullPage: true });
+});
+
+test('initial stock is editable and counted in pallets against capacity', async ({ page }) => {
+  await page.goto('/#data');
+  await page.getByRole('tab', { name: 'Initial stock' }).click();
+  // P07: 48 units/crate × 32 crates/pallet = 1536 units/pallet → 100,000 units = 65.1 → 66 pallets.
+  const cell = page.getByLabel('P07 initial stock at A-IF');
+  await cell.fill('100000');
+  await cell.press('Enter');
+  await expect(page.getByText('66 / 250')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Plan' }).click();
+  await expect(page.getByTestId('plan-summary')).toContainText('Optimal', { timeout: 20_000 });
+  await expect(page.getByTestId('plan-summary')).toContainText('Unmet demand0 units');
+});
