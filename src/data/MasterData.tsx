@@ -1,15 +1,17 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { effectiveRate, unitsPerPallet } from '../model/capacity';
-import type { Dataset, Machine } from '../model/types';
+import type { Dataset, Machine, StorageAccepts, StorageLocation } from '../model/types';
 import { exportJson, parseDataset } from '../store/dataset';
 import { useDataset } from '../store/DatasetContext';
-import { DateListCell, NumberCell, RemoveButton, SelectCell, TextCell, WeekdaysCell } from '../ui/cells';
+import { CheckboxCell, DateListCell, NumberCell, RemoveButton, SelectCell, TextCell, WeekdaysCell } from '../ui/cells';
 import { fmt, productColor, siteColor } from '../ui/palette';
 
 const TABS = [
   ['machines', 'Machines'],
   ['products', 'Products'],
   ['capabilities', 'Capabilities'],
+  ['sites', 'Sites & logistics'],
+  ['settings', 'Settings'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -37,6 +39,8 @@ export function MasterData() {
         {tab === 'machines' && <MachinesTable />}
         {tab === 'products' && <ProductsTable />}
         {tab === 'capabilities' && <CapabilitiesTable />}
+        {tab === 'sites' && <SitesAndLogistics />}
+        {tab === 'settings' && <SettingsForm />}
       </section>
     </div>
   );
@@ -350,5 +354,169 @@ function AddCapability() {
         + Capability
       </button>
     </div>
+  );
+}
+
+function SubHeading({ children }: { children: ReactNode }) {
+  return <h3 className="mb-1 mt-6 text-sm font-semibold first:mt-0">{children}</h3>;
+}
+
+const ACCEPTS: { value: StorageAccepts; label: string }[] = [
+  { value: 'local', label: 'Produced at this site' },
+  { value: 'inbound', label: 'Inbound by truck' },
+];
+
+function SitesAndLogistics() {
+  const { dataset, dispatch } = useDataset();
+  const siteOptions = dataset.sites.map((s) => ({ value: s.id, label: s.name }));
+  const siteName = new Map(dataset.sites.map((s) => [s.id, s.name]));
+  return (
+    <div>
+      <SubHeading>Sites</SubHeading>
+      <Table head={['ID', 'Name', 'Demand site', 'Holidays']}>
+        {dataset.sites.map((s) => (
+          <tr key={s.id} data-testid={`site-row-${s.id}`}>
+            <td className="whitespace-nowrap px-2 font-medium">
+              <span className="flex items-center gap-2">
+                <Dot color={siteColor(s.id)} />
+                {s.id}
+              </span>
+            </td>
+            <td className="min-w-36">
+              <TextCell label={`${s.id} name`} value={s.name} onCommit={(name) => dispatch({ type: 'updateSite', id: s.id, patch: { name } })} />
+            </td>
+            <td>
+              <span className="flex justify-center">
+                <input
+                  type="radio"
+                  name="demand-site"
+                  aria-label={`${s.id} is the demand site`}
+                  className="h-4 w-4 cursor-pointer accent-[var(--accent)]"
+                  checked={s.isDemandSite}
+                  onChange={() => dispatch({ type: 'updateSite', id: s.id, patch: { isDemandSite: true } })}
+                />
+              </span>
+            </td>
+            <td className="w-full">
+              <DateListCell label={`${s.id} holidays`} value={s.holidays} onCommit={(holidays) => dispatch({ type: 'updateSite', id: s.id, patch: { holidays } })} />
+            </td>
+          </tr>
+        ))}
+      </Table>
+
+      <SubHeading>Storage locations</SubHeading>
+      <Table
+        head={['ID', 'Name', 'Site', 'Accepts', 'Capacity', '']}
+        numeric={[4]}
+        footer={dataset.sites.map((s) => (
+          <button key={s.id} className={BUTTON} onClick={() => dispatch({ type: 'addStorage', siteId: s.id })}>
+            + Storage at {s.name}
+          </button>
+        ))}
+      >
+        {dataset.storageLocations.map((l) => {
+          const update = (patch: Partial<Omit<StorageLocation, 'id'>>) => dispatch({ type: 'updateStorage', id: l.id, patch });
+          return (
+            <tr key={l.id} data-testid={`storage-row-${l.id}`}>
+              <td className="tabular whitespace-nowrap px-2 font-medium">{l.id}</td>
+              <td className="min-w-48">
+                <TextCell label={`${l.id} name`} value={l.name} onCommit={(name) => update({ name })} />
+              </td>
+              <td className="min-w-28">
+                <SelectCell label={`${l.id} site`} value={l.siteId} options={siteOptions} onChange={(siteId) => update({ siteId })} />
+              </td>
+              <td className="min-w-44">
+                <SelectCell label={`${l.id} accepts`} value={l.accepts} options={ACCEPTS} onChange={(accepts) => update({ accepts })} />
+              </td>
+              <td>
+                <NumberCell label={`${l.id} capacity`} suffix="pal" value={l.capacityPallets} onCommit={(capacityPallets) => update({ capacityPallets })} />
+              </td>
+              <td>
+                <RemoveButton
+                  label={`Remove ${l.id}`}
+                  onClick={() => {
+                    if (confirm(`Remove ${l.name}?`)) dispatch({ type: 'removeStorage', id: l.id });
+                  }}
+                />
+              </td>
+            </tr>
+          );
+        })}
+      </Table>
+
+      <SubHeading>Truck lanes</SubHeading>
+      <Table head={['Lane', 'Max trucks / week', 'Pallets / truck', 'Weekly capacity', 'Runs weekends & holidays']} numeric={[1, 2]}>
+        {dataset.truckLanes.map((t) => (
+          <tr key={t.id} data-testid={`truck-row-${t.id}`}>
+            <td className="whitespace-nowrap px-2 font-medium">
+              {siteName.get(t.fromSiteId) ?? t.fromSiteId} &rarr; {siteName.get(t.toSiteId) ?? t.toSiteId}
+            </td>
+            <td>
+              <NumberCell
+                label={`${t.id} max trucks per week`}
+                value={t.maxTrucksPerWeek}
+                onCommit={(maxTrucksPerWeek) => dispatch({ type: 'updateTruckLane', id: t.id, patch: { maxTrucksPerWeek } })}
+              />
+            </td>
+            <td>
+              <NumberCell
+                label={`${t.id} pallets per truck`}
+                suffix="pal"
+                value={t.palletsPerTruck}
+                onCommit={(palletsPerTruck) => dispatch({ type: 'updateTruckLane', id: t.id, patch: { palletsPerTruck } })}
+              />
+            </td>
+            <td className="tabular px-2 text-right text-muted">{fmt(t.maxTrucksPerWeek * t.palletsPerTruck)} pallets</td>
+            <td>
+              <CheckboxCell
+                label={`${t.id} runs on weekends and holidays`}
+                checked={t.runsOnWeekendsAndHolidays}
+                onChange={(runsOnWeekendsAndHolidays) => dispatch({ type: 'updateTruckLane', id: t.id, patch: { runsOnWeekendsAndHolidays } })}
+              />
+            </td>
+          </tr>
+        ))}
+      </Table>
+    </div>
+  );
+}
+
+function SettingsForm() {
+  const { dataset, dispatch } = useDataset();
+  const { settings } = dataset;
+  const rows: [string, string, ReactNode][] = [
+    [
+      'Planning year',
+      'The calendar year the plan covers (1 Jan to 31 Dec).',
+      <NumberCell label="Planning year" value={settings.planningYear} onCommit={(planningYear) => dispatch({ type: 'updateSettings', patch: { planningYear } })} />,
+    ],
+    [
+      'Shift length',
+      'Hours per shift, for all machines.',
+      <NumberCell label="Shift length" suffix="h" value={settings.shiftHours} onCommit={(shiftHours) => dispatch({ type: 'updateSettings', patch: { shiftHours } })} />,
+    ],
+    [
+      'Max campaign length',
+      'Most consecutive shifts one product may run on a machine.',
+      <NumberCell
+        label="Max campaign length"
+        suffix="shifts"
+        value={settings.maxCampaignShifts}
+        onCommit={(maxCampaignShifts) => dispatch({ type: 'updateSettings', patch: { maxCampaignShifts } })}
+      />,
+    ],
+  ];
+  return (
+    <dl className="max-w-2xl divide-y divide-line/60">
+      {rows.map(([label, hint, field]) => (
+        <div key={label} className="flex items-center gap-4 py-3">
+          <dt className="flex-1">
+            <div className="text-sm font-medium">{label}</div>
+            <div className="text-xs text-muted">{hint}</div>
+          </dt>
+          <dd className="w-44">{field}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

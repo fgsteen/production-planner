@@ -27,7 +27,7 @@ const PRODUCT_NAMES = ['Alder', 'Birch', 'Cedar', 'Dogwood', 'Elm', 'Fir', 'Gink
 
 export const seedDataset: Dataset = {
   version: 1,
-  settings: { shiftHours: 8, maxCampaignShifts: 21 },
+  settings: { planningYear: 2027, shiftHours: 8, maxCampaignShifts: 21 },
   sites: [
     { id: 'B', name: 'Site B', isDemandSite: false, holidays: COMMON_HOLIDAYS },
     { id: 'A', name: 'Site A', isDemandSite: true, holidays: [...COMMON_HOLIDAYS, '2027-06-24'] },

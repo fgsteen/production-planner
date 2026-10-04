@@ -3,7 +3,9 @@ import type { Dataset } from './types';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isIsoDate(s: string): boolean {
-  return ISO_DATE.test(s) && new Date(`${s}T00:00:00Z`).toISOString().startsWith(s);
+  if (!ISO_DATE.test(s)) return false;
+  const t = Date.parse(`${s}T00:00:00Z`); // NaN for e.g. month 13; toISOString() would throw
+  return !Number.isNaN(t) && new Date(t).toISOString().startsWith(s);
 }
 
 /** Returns a list of human-readable problems; empty means the dataset is consistent. */
@@ -25,6 +27,8 @@ export function validateDataset(ds: Dataset): string[] {
   uniqueIds('storage location', ds.storageLocations);
   uniqueIds('truck lane', ds.truckLanes);
 
+  if (!(Number.isInteger(ds.settings.planningYear) && ds.settings.planningYear >= 2000 && ds.settings.planningYear <= 2100))
+    err('Planning year must be a whole year between 2000 and 2100');
   if (!(ds.settings.shiftHours > 0 && ds.settings.shiftHours <= 24)) err('Shift length must be in (0, 24] hours');
   if (!(Number.isInteger(ds.settings.maxCampaignShifts) && ds.settings.maxCampaignShifts >= 1))
     err('Max campaign length must be a whole number of shifts ≥ 1');

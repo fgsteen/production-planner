@@ -54,6 +54,33 @@ describe('datasetReducer', () => {
   });
 });
 
+describe('datasetReducer: sites, storage, trucks, settings', () => {
+  it('making a site the demand site clears the flag on the others', () => {
+    const ds = datasetReducer(seedDataset, { type: 'updateSite', id: 'B', patch: { isDemandSite: true } });
+    expect(ds.sites.map((s) => [s.id, s.isDemandSite])).toEqual([['B', true], ['A', false]]);
+    expect(validateDataset(ds)).toEqual([]);
+  });
+
+  it('adds, edits and removes storage; edits truck lanes and settings', () => {
+    let ds = datasetReducer(seedDataset, { type: 'addStorage', siteId: 'A' });
+    expect(ds.storageLocations.at(-1)).toMatchObject({ id: 'A-S1', siteId: 'A' });
+    ds = datasetReducer(ds, { type: 'updateStorage', id: 'A-S1', patch: { capacityPallets: 42 } });
+    expect(ds.storageLocations.at(-1)!.capacityPallets).toBe(42);
+    ds = datasetReducer(ds, { type: 'removeStorage', id: 'A-S1' });
+    expect(ds.storageLocations).toEqual(seedDataset.storageLocations);
+
+    ds = datasetReducer(ds, { type: 'updateTruckLane', id: 'B-A', patch: { maxTrucksPerWeek: 7 } });
+    ds = datasetReducer(ds, { type: 'updateSettings', patch: { planningYear: 2028 } });
+    expect(ds.truckLanes[0].maxTrucksPerWeek).toBe(7);
+    expect(ds.settings).toEqual({ ...seedDataset.settings, planningYear: 2028 });
+  });
+
+  it('validation flags a non-integer planning year', () => {
+    const ds = datasetReducer(seedDataset, { type: 'updateSettings', patch: { planningYear: 2027.5 } });
+    expect(validateDataset(ds)).toEqual(['Planning year must be a whole year between 2000 and 2100']);
+  });
+});
+
 describe('nextId', () => {
   it('fills the first gap', () => {
     expect(nextId('P', ['P01', 'P03'])).toBe('P02');
@@ -65,6 +92,12 @@ describe('JSON round trip', () => {
   it('export → parse gives an equal dataset', () => {
     const parsed = parseDataset(exportJson(seedDataset));
     expect(parsed).toEqual({ ok: true, dataset: seedDataset });
+  });
+
+  it('fills settings missing from older files with defaults', () => {
+    const { planningYear: _omit, ...oldSettings } = seedDataset.settings;
+    const parsed = parseDataset(JSON.stringify({ ...seedDataset, settings: { ...oldSettings, shiftHours: 6 } }));
+    expect(parsed.ok && parsed.dataset.settings).toEqual({ planningYear: 2027, shiftHours: 6, maxCampaignShifts: 21 });
   });
 
   it.each([

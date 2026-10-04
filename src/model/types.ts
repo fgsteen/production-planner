@@ -67,6 +67,8 @@ export interface Capability {
 }
 
 export interface Settings {
+  /** Calendar year being planned (Jan 1 – Dec 31). */
+  planningYear: number;
   shiftHours: number;
   /** Max consecutive shifts of one product on a machine. */
   maxCampaignShifts: number;

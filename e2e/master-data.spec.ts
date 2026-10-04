@@ -69,6 +69,32 @@ test.describe('master data', () => {
     await expect(page.getByRole('status')).toContainText('Imported');
   });
 
+  test('planning year and truck lane edits reach the overview', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await page.getByLabel('Planning year').fill('2028');
+    await page.getByLabel('Planning year').press('Enter');
+
+    await page.getByRole('tab', { name: 'Sites & logistics' }).click();
+    await page.getByLabel('B-A max trucks per week').fill('7');
+    await page.getByLabel('B-A max trucks per week').press('Enter');
+    await expect(page.getByTestId('truck-row-B-A')).toContainText('210 pallets');
+    await page.getByLabel('B is the demand site').check();
+    await expect(page.getByLabel('A is the demand site')).not.toBeChecked();
+    await expect(page.getByTestId('problems')).toHaveCount(0);
+    await page.screenshot({ path: 'test-results/screens/master-data-sites.png', fullPage: true });
+
+    await page.getByRole('link', { name: 'Overview' }).click();
+    await expect(page.getByText('Available shifts in 2028')).toBeVisible();
+    await expect(page.getByText('210 pallets')).toBeVisible();
+  });
+
+  test('invalid holiday dates are reported', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Sites & logistics' }).click();
+    await page.getByLabel('A holidays').fill('2027-01-01, 2027-13-01');
+    await page.getByLabel('A holidays').press('Enter');
+    await expect(page.getByTestId('problems')).toContainText('Site A: invalid holiday date "2027-13-01"');
+  });
+
   test('rejects an invalid import file', async ({ page }) => {
     // Build the file in the page (no Node Buffer types in this project).
     await page.getByTestId('import-file').evaluate((input: HTMLInputElement) => {

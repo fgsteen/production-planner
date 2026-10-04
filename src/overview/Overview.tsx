@@ -4,13 +4,11 @@ import type { Dataset, Machine, Site } from '../model/types';
 import { fmt, productColor, siteColor } from '../ui/palette';
 import { SiteMap } from './SiteMap';
 
-// Calendar year used for the "available shifts" figure until planning periods exist.
-const YEAR = 2027;
-
 export function Overview({ dataset }: { dataset: Dataset }) {
   const [focus, setFocus] = useState<string | null>(null);
   const productColors = useMemo(() => new Map(dataset.products.map((p, i) => [p.id, productColor(i)])), [dataset]);
   const maxRate = Math.max(...dataset.capabilities.map(effectiveRate));
+  const year = dataset.settings.planningYear;
 
   return (
     <div className="space-y-8">
@@ -20,10 +18,10 @@ export function Overview({ dataset }: { dataset: Dataset }) {
         <SiteMap dataset={dataset} productColors={productColors} />
       </Section>
 
-      <Section title="Machines by site" hint={`Effective rate = rate × OEE. Available shifts in ${YEAR} after holidays and maintenance.`}>
+      <Section title="Machines by site" hint={`Effective rate = rate × OEE. Available shifts in ${year} after holidays and maintenance.`}>
         <div className="grid gap-6 lg:grid-cols-2">
           {dataset.sites.map((site) => (
-            <SitePanel key={site.id} site={site} dataset={dataset} productColors={productColors} maxRate={maxRate} focus={focus} />
+            <SitePanel key={site.id} site={site} dataset={dataset} productColors={productColors} maxRate={maxRate} focus={focus} year={year} />
           ))}
         </div>
       </Section>
@@ -75,9 +73,10 @@ interface PanelProps {
   productColors: Map<string, string>;
   maxRate: number;
   focus: string | null;
+  year: number;
 }
 
-function SitePanel({ site, dataset, productColors, maxRate, focus }: PanelProps) {
+function SitePanel({ site, dataset, productColors, maxRate, focus, year }: PanelProps) {
   const machines = dataset.machines.filter((m) => m.siteId === site.id);
   const stores = dataset.storageLocations.filter((l) => l.siteId === site.id);
   return (
@@ -96,18 +95,18 @@ function SitePanel({ site, dataset, productColors, maxRate, focus }: PanelProps)
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {machines.map((m) => (
-          <MachineCard key={m.id} machine={m} site={site} dataset={dataset} productColors={productColors} maxRate={maxRate} focus={focus} />
+          <MachineCard key={m.id} machine={m} site={site} dataset={dataset} productColors={productColors} maxRate={maxRate} focus={focus} year={year} />
         ))}
       </div>
     </div>
   );
 }
 
-function MachineCard({ machine, site, dataset, productColors, maxRate, focus }: Omit<PanelProps, 'site'> & { machine: Machine; site: Site }) {
+function MachineCard({ machine, site, dataset, productColors, maxRate, focus, year }: Omit<PanelProps, 'site'> & { machine: Machine; site: Site }) {
   const caps = dataset.capabilities.filter((c) => c.machineId === machine.id);
   const canMakeFocus = focus !== null && caps.some((c) => c.productId === focus);
   const dimmed = focus !== null && !canMakeFocus;
-  const shifts = availableShifts(machine, site, `${YEAR}-01-01`, `${YEAR}-12-31`);
+  const shifts = availableShifts(machine, site, `${year}-01-01`, `${year}-12-31`);
   return (
     <article
       data-testid={`machine-${machine.id}`}

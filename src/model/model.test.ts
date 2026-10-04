@@ -67,6 +67,15 @@ describe('validateDataset', () => {
     expect(errors.some((e) => e.startsWith('Machine B2: small line clear must be'))).toBe(true);
     expect(errors).toContain('Exactly one site must be the demand site');
   });
+
+  it('reports (does not throw on) dates the Date parser rejects', () => {
+    const ds = clone();
+    ds.sites[0].holidays.push('2027-13-01');
+    ds.machines[0].maintenance.push('2027-00-10');
+    const errors = validateDataset(ds);
+    expect(errors).toContain('Site B: invalid holiday date "2027-13-01"');
+    expect(errors).toContain('Machine B1: invalid maintenance date "2027-00-10"');
+  });
 });
 
 describe('capacity', () => {

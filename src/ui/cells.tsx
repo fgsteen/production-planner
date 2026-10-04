@@ -105,6 +105,14 @@ export function WeekdaysCell({ value, onChange, label }: { value: number[]; onCh
   );
 }
 
+export function CheckboxCell({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <span className="flex justify-center">
+      <input type="checkbox" aria-label={label} className="h-4 w-4 cursor-pointer accent-[var(--accent)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    </span>
+  );
+}
+
 export function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
