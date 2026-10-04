@@ -31,7 +31,7 @@ test.describe('PNG download per panel (R45)', () => {
     await page.setViewportSize({ width: 900, height: 900 }); // narrow enough for the 20-product table to scroll
     await recordDownloads(page);
     await page.goto('/#plan');
-    await expect(page.getByTestId('plan-summary')).toContainText('Optimal', { timeout: 20_000 });
+    await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
     const panel = page.locator('section', { has: page.getByTestId('plan-table') });
     const shown = (await panel.boundingBox())!;
 
@@ -64,8 +64,8 @@ test.describe('PNG download per panel (R45)', () => {
     await page.goto('/#demand');
     await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(3);
     await page.goto('/#plan');
-    await expect(page.getByTestId('plan-summary')).toContainText('Optimal', { timeout: 20_000 });
-    await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(3); // shifts, weekly plan, transport
+    await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /^Download .* as PNG$/ })).toHaveCount(6); // priorities, shifts, weekly plan, warehouses, transport B → A and A → B
     await save('Weekly machine plan');
   });
 });

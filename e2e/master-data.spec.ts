@@ -30,13 +30,13 @@ test.describe('master data', () => {
   test('a new product is flagged until a machine can make it', async ({ page }) => {
     await page.getByRole('tab', { name: 'Products' }).click();
     await page.getByRole('button', { name: '+ Product' }).click();
-    await expect(page.getByTestId('problems')).toContainText('Product P21: no machine can produce it');
+    await expect(page.getByTestId('problems')).toContainText('Product P23: no machine can produce it');
 
     await page.getByRole('tab', { name: 'Capabilities' }).click();
     await page.getByLabel('New capability machine').selectOption('A1');
-    await page.getByLabel('New capability product').selectOption('P21');
+    await page.getByLabel('New capability product').selectOption('P23');
     await page.getByRole('button', { name: '+ Capability' }).click();
-    await expect(page.getByTestId('cap-row-A1-P21')).toBeVisible();
+    await expect(page.getByTestId('cap-row-A1-P23')).toBeVisible();
     await expect(page.getByTestId('problems')).toHaveCount(0);
   });
 
@@ -112,7 +112,7 @@ test.describe('master data', () => {
 
     await page.getByRole('link', { name: 'Overview' }).click();
     await expect(page.getByText('Available shifts in 2028')).toBeVisible();
-    await expect(page.getByText('210 pallets')).toBeVisible();
+    await expect(page.getByText('B→A 210 · A→B 90')).toBeVisible();
   });
 
   test('holidays recur as MM-DD; full dates lose their year; invalid days are reported', async ({ page }) => {

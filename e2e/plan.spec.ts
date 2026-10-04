@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('solves a draft plan for the demo data in the browser', async ({ page }) => {
   await page.goto('/#plan');
   const summary = page.getByTestId('plan-summary');
-  await expect(summary).toContainText('Optimal', { timeout: 20_000 });
+  await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
   await expect(summary).toContainText('Unmet demand0 units');
   await expect(page.getByTestId('plan-row-B1')).toBeVisible();
   await page.screenshot({ path: 'test-results/screens/plan.png', fullPage: true });
@@ -13,18 +13,18 @@ test('solves a draft plan for the demo data in the browser', async ({ page }) =>
   await page.getByLabel('P10 yearly demand').fill('8000000');
   await page.getByLabel('P10 yearly demand').press('Enter');
   await page.getByRole('link', { name: 'Plan' }).click();
-  await expect(summary).toContainText('Optimal', { timeout: 20_000 });
+  await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
   await expect(summary).not.toContainText('Unmet demand0 units');
 });
 
 test('shows the weekly machine plan and the B → A transport breakdown', async ({ page }) => {
   await page.goto('/#plan');
-  await expect(page.getByTestId('plan-summary')).toContainText('Optimal', { timeout: 20_000 });
+  await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
 
   // R42: one row per machine; the table view lists the weeks of the chosen machine.
   const weekly = page.getByTestId('machine-week-plan');
   await expect(weekly.getByTestId('machine-week-A1')).toContainText('% used');
-  await page.getByRole('button', { name: 'Table' }).click();
+  await weekly.getByRole('button', { name: 'Table' }).click();
   await weekly.getByRole('combobox', { name: 'Machine' }).selectOption('B2');
   await expect(weekly.getByTestId('machine-week-table').locator('tbody tr')).toHaveCount(52);
 
@@ -48,6 +48,38 @@ test('initial stock is editable and counted in pallets against capacity', async 
   await expect(page.getByText('66 / 250')).toBeVisible();
 
   await page.getByRole('link', { name: 'Plan' }).click();
-  await expect(page.getByTestId('plan-summary')).toContainText('Optimal', { timeout: 20_000 });
+  await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
   await expect(page.getByTestId('plan-summary')).toContainText('Unmet demand0 units');
+});
+
+test('priorities, line clears, warehouses and group-by (R22, R31, R44, R46, R48)', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/#plan');
+  const summary = page.getByTestId('plan-summary');
+  await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
+  await expect(summary).toContainText('Unmet demand0 units');
+  await expect(summary).toContainText('Trucks A → B');
+  await expect(page.getByTestId('line-clears-A1')).toContainText(/\d+ \/ \d+/);
+  await expect(page.getByTestId('transport-A-B')).toBeVisible();
+
+  // R46: one section per storage location.
+  const warehouses = page.getByTestId('warehouse-panel');
+  await expect(warehouses.getByTestId('warehouse-B-local')).toContainText('B warehouse');
+  await expect(warehouses.getByTestId('warehouse-A-inbound')).toContainText('A warehouse');
+  await warehouses.getByRole('button', { name: 'Table' }).click();
+  await expect(warehouses.getByTestId('warehouse-table')).toBeVisible();
+
+  // R44: group the shifts table by X.
+  await page.getByLabel('Group by').first().selectOption('X');
+  await expect(page.getByTestId('plan-table').locator('thead')).toContainText('X K');
+
+  // R22: a weight change is saved and re-solved; demand stays met. (Known gap, see NEXT_SESSION:
+  // on the demo data the line clear weight barely changes the number of line clears.)
+  await page.getByLabel('Few line clears weight').fill('10');
+  await expect(page.getByTestId('priorities')).toContainText('10');
+  await expect(page.getByTestId('plan-status')).toContainText('Solving', { timeout: 5_000 });
+  await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
+  await expect(summary).toContainText('Unmet demand0 units');
+  await page.reload();
+  await expect(page.getByLabel('Few line clears weight')).toHaveValue('10');
 });

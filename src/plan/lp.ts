@@ -181,8 +181,10 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
       if (avail(c.machineId, w) > 0) {
         cols.set(r(i, j, w), { kind: 'run', productId: c.productId, machineId: c.machineId, week: w });
         binaries.push(r(i, j, w));
-        // A run worth its large line clear: a day (three lots), or the whole week if shorter.
-        minRunHours.set(r(i, j, w), l.large > 0 ? Math.min(3 * l.perLot, avail(c.machineId, w) / (1 + l.overhead)) : 0);
+        // A run worth its large line clear, for the warm start (solve.ts): weight ÷ 2 lots (a day at the
+        // default 4 … two days at 10), or the whole week if shorter; none without line clears.
+        const minLots = l.large > 0 ? prio.lineClears / 2 : 0;
+        minRunHours.set(r(i, j, w), Math.min(minLots * l.perLot, avail(c.machineId, w) / (1 + l.overhead)));
         // A tiny cost so a run without production is never chosen.
         cost(r(i, j, w), (prio.lineClears * Math.max(0, l.large - l.small)) / LC0 + 1e-5);
       }
