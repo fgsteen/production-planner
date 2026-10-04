@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDataset } from '../model/seed';
 import type { Dataset } from '../model/types';
 import type { PlanResult } from './lp';
-import { solvePlan } from './solve';
+import { campaignCycles, solvePlan } from './solve';
 
 let highs: Awaited<ReturnType<typeof loadHighs>>;
 beforeAll(async () => {
@@ -140,6 +140,28 @@ describe('plan MILP: line clears and priorities', () => {
     expect(large(strong)).toBeLessThan(large(weak) / 2);
   }, 20_000);
 
+  it('a campaign across weeks pays one large line clear (ADR 0008)', () => {
+    const ds = tiny(1000);
+    const plan = solvePlan(highs, { ...ds, machines: [{ ...ds.machines[0], largeLineClearMin: 240 }], capabilities: ds.capabilities.slice(0, 1) });
+    expect(plan.unmetUnits).toBeCloseTo(0);
+    expect(plan.lineClears.find((l) => l.machineId === 'M1')!.large).toBeCloseTo(1);
+  });
+
+  it('only one product continues across a week boundary (ADR 0008)', () => {
+    // Three products of 9 h every week and no storage: week 1 starts three campaigns, every later week two.
+    const ds = twoProducts({ balance: 0, lineClears: 4, transport: 0, spare: 1 });
+    const ids = ['P', 'Q', 'R'];
+    const plan = solvePlan(highs, {
+      ...ds,
+      storageLocations: [],
+      products: ids.map((id) => ({ id, name: id, variants: {}, unitsPerCrate: 1, cratesPerPallet: 1 })),
+      capabilities: ids.map((productId) => ({ machineId: 'M1', productId, ratePerHour: 100, oeePct: 100 })),
+      demand: ids.map((productId) => ({ productId, yearlyUnits: 52 * 900, weekOverrides: {} })),
+    });
+    expect(plan.unmetUnits).toBeCloseTo(0);
+    expect(plan.lineClears.find((l) => l.machineId === 'M1')!.large).toBeCloseTo(3 + 51 * 2);
+  });
+
   it('the transport weight moves production to the demand site (R22)', () => {
     const base = twoSites({ trucks: 10 });
     const cheap = solvePlan(highs, base);
@@ -215,5 +237,21 @@ describe('plan LP: storage and trucks', () => {
     expect(plan.unmetUnits).toBeCloseTo(0);
     expect(shiftsAt(plan, 'MB')).toBeCloseTo(49 * 1.25);
     expect(plan.machineWeekShifts.get('MB')!.slice(0, 3)).toEqual([0, 0, 0]);
+  });
+});
+
+describe('campaign cycles (warm start)', () => {
+  // Pairs P–M and Q–M over 6 weeks; P makes 2 h a week, Q 20 h; a campaign is 8 h.
+  const names = [1, 2, 3, 4, 5, 6].flatMap((w) => [`r_0_0_${w}`, `r_1_0_${w}`]);
+  const hours = (k: number) => (k % 2 === 0 ? 2 : 20);
+
+  it('runs a small pair every k weeks and leaves a large one alone', () => {
+    const allowed = campaignCycles(names, hours, () => 8);
+    expect(allowed.filter((_, k) => k % 2 === 0)).toEqual([1, 0, 0, 0, 1, 0]); // k = 8 ÷ 2 = 4
+    expect(allowed.filter((_, k) => k % 2 === 1)).toEqual([1, 1, 1, 1, 1, 1]);
+  });
+
+  it('allows everything without line clears', () => {
+    expect(campaignCycles(names, hours, () => 0).every((a) => a === 1)).toBe(true);
   });
 });

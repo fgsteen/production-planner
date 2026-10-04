@@ -18,7 +18,8 @@
     "session:start": "node scripts/session/cli.mjs start",
     "session:status": "node scripts/session/cli.mjs status",
     "session:end": "node scripts/session/cli.mjs end",
-    "session:stats": "node scripts/session/cli.mjs stats"
+    "session:stats": "node scripts/session/cli.mjs stats",
+    "measure:plan": "vitest run --config scripts/measure/vitest.config.ts --reporter=verbose --silent=false"
   },
   "dependencies": {
     "@xyflow/react": "^12.12.0",
