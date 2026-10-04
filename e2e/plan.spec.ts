@@ -89,3 +89,14 @@ test('priorities, line clears, warehouses and group-by (R22, R31, R44, R46, R48)
   await page.reload();
   await expect(page.getByLabel('Few line clears weight')).toHaveValue('10');
 });
+
+test('shows solve progress, cancels, and re-solves on the next change', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/#plan');
+  const status = page.getByTestId('plan-status');
+  await expect(status).toContainText(/step \d of 3/, { timeout: 10_000 });
+  await status.getByRole('button', { name: 'Cancel' }).click();
+  await expect(status).toContainText('Solve cancelled');
+  await page.getByLabel('Few line clears weight').fill('5');
+  await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
+});

@@ -3,10 +3,10 @@ import loadHighs from 'highs';
 import wasmUrl from 'highs/runtime?url';
 import type { Dataset } from '../model/types';
 import type { PlanResult } from './lp';
-import { solvePlan } from './solve';
+import { solvePlan, type SolveStage } from './solve';
 
 export type WorkerRequest = { id: number; dataset: Dataset };
-export type WorkerResponse = { id: number } & ({ ok: true; plan: PlanResult } | { ok: false; error: string });
+export type WorkerResponse = { id: number } & ({ ok: true; plan: PlanResult } | { ok: false; error: string } | { stage: SolveStage });
 
 let highs: ReturnType<typeof loadHighs> | null = null;
 
@@ -15,7 +15,8 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   let response: WorkerResponse;
   try {
     highs ??= loadHighs({ locateFile: () => wasmUrl });
-    response = { id, ok: true, plan: solvePlan(await highs, dataset) };
+    const h = await highs;
+    response = { id, ok: true, plan: solvePlan(h, dataset, undefined, (stage) => self.postMessage({ id, stage } satisfies WorkerResponse)) };
   } catch (err) {
     highs = null; // a failed solve can leave the Wasm instance unusable: start fresh next time
     response = { id, ok: false, error: err instanceof Error ? err.message : String(err) };

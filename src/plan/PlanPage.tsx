@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { checkCapacity } from '../model/demand';
 import { groupProducts } from '../model/products';
 import { DEFAULT_PRIORITIES } from '../model/seed';
@@ -8,42 +8,94 @@ import { fmt, productColor } from '../ui/palette';
 import { MIP_REL_GAP, TIME_LIMIT_S, type PlanResult } from './lp';
 import { TransportBreakdown, WeeklyMachinePlan } from './PlanDetails';
 import type { WorkerRequest, WorkerResponse } from './plan.worker';
+import type { SolveStage } from './solve';
 import { Panel } from '../ui/Panel';
 import { GroupBySelect } from '../ui/GroupBy';
 import { WarehousePanel } from './Warehouse';
 
-type State = { kind: 'solving' } | { kind: 'done'; plan: PlanResult } | { kind: 'error'; error: string };
+type State =
+  | { kind: 'solving'; stage?: SolveStage; since: number }
+  | { kind: 'done'; plan: PlanResult }
+  | { kind: 'error'; error: string }
+  | { kind: 'cancelled' };
 
-/** Re-solves whenever the dataset changes; stale answers are dropped. */
-function usePlan(dataset: Dataset, enabled: boolean): State {
+const STAGE_LABELS: Record<SolveStage, string> = {
+  relax: 'step 1 of 3: relaxed plan and campaign cycles',
+  fix: 'step 2 of 3: fixing the runs',
+  mip: 'step 3 of 3: improving the plan',
+};
+
+/**
+ * Re-solves whenever the dataset changes. A change during a solve, or Cancel, terminates the
+ * worker (HiGHS can't be interrupted) and the next solve starts a fresh one.
+ */
+function usePlan(dataset: Dataset, enabled: boolean): { state: State; cancel: () => void } {
   const worker = useRef<Worker | null>(null);
+  const busy = useRef(false);
   const lastId = useRef(0);
-  const [state, setState] = useState<State>({ kind: 'solving' });
+  const [state, setState] = useState<State>({ kind: 'solving', since: Date.now() });
 
-  useEffect(() => {
+  const stop = useCallback(() => {
+    worker.current?.terminate();
+    worker.current = null;
+    busy.current = false;
+  }, []);
+  const start = useCallback(() => {
     const w = new Worker(new URL('./plan.worker.ts', import.meta.url), { type: 'module' });
     w.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      if (e.data.id !== lastId.current) return;
-      setState(e.data.ok ? { kind: 'done', plan: e.data.plan } : { kind: 'error', error: e.data.error });
+      const msg = e.data;
+      if (msg.id !== lastId.current) return;
+      if ('stage' in msg) return setState((s) => (s.kind === 'solving' ? { ...s, stage: msg.stage } : s));
+      busy.current = false;
+      setState(msg.ok ? { kind: 'done', plan: msg.plan } : { kind: 'error', error: msg.error });
     };
-    w.onerror = (e) => setState({ kind: 'error', error: e.message || 'Solver failed to load' });
+    w.onerror = (e) => {
+      busy.current = false;
+      setState({ kind: 'error', error: e.message || 'Solver failed to load' });
+    };
     worker.current = w;
-    return () => w.terminate();
+    return w;
   }, []);
+  useEffect(() => stop, [stop]);
 
   useEffect(() => {
-    if (!enabled || !worker.current) return;
+    if (!enabled) return;
+    if (busy.current) stop();
     const id = ++lastId.current;
-    setState({ kind: 'solving' });
-    worker.current.postMessage({ id, dataset } satisfies WorkerRequest);
-  }, [dataset, enabled]);
+    busy.current = true;
+    setState({ kind: 'solving', since: Date.now() });
+    (worker.current ?? start()).postMessage({ id, dataset } satisfies WorkerRequest);
+  }, [dataset, enabled, start, stop]);
 
-  return state;
+  const cancel = useCallback(() => {
+    stop();
+    lastId.current++;
+    setState({ kind: 'cancelled' });
+  }, [stop]);
+  return { state, cancel };
+}
+
+function SolvingStatus({ state, onCancel }: { state: Extract<State, { kind: 'solving' }>; onCancel: () => void }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <p className="flex items-center gap-3 text-sm text-muted" data-testid="plan-status">
+      <span>
+        Solving… {state.stage ? STAGE_LABELS[state.stage] : 'loading the solver'} · {((now - state.since) / 1000).toFixed(1)} s
+      </span>
+      <button type="button" onClick={onCancel} className="rounded-md border border-line px-2 py-0.5 text-xs hover:bg-surface">
+        Cancel
+      </button>
+    </p>
+  );
 }
 
 export function PlanPage() {
   const { dataset, errors } = useDataset();
-  const state = usePlan(dataset, errors.length === 0);
+  const { state, cancel } = usePlan(dataset, errors.length === 0);
   return (
     <div className="space-y-6">
       <div>
@@ -61,8 +113,10 @@ export function PlanPage() {
           Fix the {errors.length} {errors.length === 1 ? 'problem' : 'problems'} on the Master data or Demand page first.
         </p>
       ) : state.kind === 'solving' ? (
+        <SolvingStatus state={state} onCancel={cancel} />
+      ) : state.kind === 'cancelled' ? (
         <p className="text-sm text-muted" data-testid="plan-status">
-          Solving…
+          Solve cancelled. Change a priority or any data to solve again.
         </p>
       ) : state.kind === 'error' ? (
         <p role="alert" className="text-sm text-[#e15759]" data-testid="plan-status">

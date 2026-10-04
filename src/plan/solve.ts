@@ -43,7 +43,10 @@ export function campaignCycles(runNames: string[], relaxedHours: (k: number) => 
   return allowed;
 }
 
-export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S): PlanResult {
+/** Solve stages, reported as they start. */
+export type SolveStage = 'relax' | 'fix' | 'mip';
+
+export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, onStage?: (stage: SolveStage) => void): PlanResult {
   const check = checkCapacity(ds);
   const model = buildPlanLp(ds, check);
   const t0 = performance.now();
@@ -71,13 +74,14 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
     const sel = { kind: 'set' as const, indices: Int32Array.from(runs) };
     const hoursOf = runs.map((i) => mdl.getColByName(`h_${names[i].slice(2)}`));
     const stages: Record<string, number> = {};
-    const lap = (stage: string) => (stages[stage] = Math.round(performance.now() - t0) / 1000 - Object.values(stages).reduce((a, b) => a + b, 0));
+    const lap = (stage: SolveStage) => (stages[stage] = Math.round(performance.now() - t0) / 1000 - Object.values(stages).reduce((a, b) => a + b, 0));
 
     // 1. Relaxation (runs continuous), then campaigns: a product–machine pair whose average weekly
     //    production is shorter than a campaign worth its line clear may only run every k-th week,
     //    k = campaign ÷ weekly average (at most MAX_CYCLE). The pairs on a machine are staggered.
     //    If that leaves more than 0.1 % of demand unmet, the campaigns are halved (twice at most,
     //    then dropped); a little is fine, as step 2 may open other runs.
+    onStage?.('relax');
     mdl.changeColsIntegrality(sel, new Int32Array(runs.length)); // 0 = continuous
     if (alone.length) mdl.changeColsIntegrality(aloneSel, new Int32Array(alone.length));
     const upper = new Float64Array(runs.length).fill(1);
@@ -109,6 +113,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
       upper.fill(1);
     }
     lap('relax');
+    onStage?.('fix');
     setCont(1);
 
     // 2. Runs fixed to 1 where the relaxation produced, so their line clears are paid in full. All
@@ -142,6 +147,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S):
     start = Float64Array.from(mdl.getSolution().colValue);
     const startObjective = mdl.getObjectiveValue();
     lap('fix');
+    onStage?.('mip');
 
     // 3. MIP from that start, over the runs the cycles allow plus those the start uses.
     mdl.changeColsBounds(sel, new Float64Array(runs.length), upper.map((u, k) => Math.max(u, fixed[k])));
