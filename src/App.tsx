@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AboutPage } from './about/AboutPage';
 import { MasterData } from './data/MasterData';
 import { DemandPage } from './demand/DemandPage';
 import { PlanPage } from './plan/PlanPage';
@@ -12,6 +13,7 @@ const PAGES = [
   ['data', 'Master data'],
   ['demand', 'Demand'],
   ['plan', 'Plan'],
+  ['about', 'About'],
 ] as const;
 type Page = (typeof PAGES)[number][0];
 
@@ -64,7 +66,7 @@ function Shell() {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {page === 'data' ? <MasterData /> : page === 'demand' ? <DemandPage /> : page === 'plan' ? <PlanPage /> : <Overview dataset={dataset} />}
+        {page === 'data' ? <MasterData /> : page === 'demand' ? <DemandPage /> : page === 'plan' ? <PlanPage /> : page === 'about' ? <AboutPage /> : <Overview dataset={dataset} />}
       </main>
     </div>
   );
