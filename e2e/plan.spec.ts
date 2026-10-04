@@ -73,13 +73,19 @@ test('priorities, line clears, warehouses and group-by (R22, R31, R44, R46, R48)
   await page.getByLabel('Group by').first().selectOption('X');
   await expect(page.getByTestId('plan-table').locator('thead')).toContainText('X K');
 
-  // R22: a weight change is saved and re-solved; demand stays met. (Known gap, see NEXT_SESSION:
-  // on the demo data the line clear weight barely changes the number of line clears.)
-  await page.getByLabel('Few line clears weight').fill('10');
+  // R22: a weight change is saved and re-solved; demand stays met, and a higher line clear weight
+  // gives less line clear time (ADR 0008).
+  const clearHours = async (weight: string) => {
+    await page.getByLabel('Few line clears weight').fill(weight);
+    await expect(page.getByTestId('plan-status')).toContainText('Solving', { timeout: 5_000 });
+    await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
+    await expect(summary).toContainText('Unmet demand0 units');
+    return Number((await summary.locator('div', { hasText: 'Line clear hours' }).locator('dd').innerText()).replace(/\D/g, ''));
+  };
+  const loose = await clearHours('0');
+  const strict = await clearHours('10');
+  expect(strict).toBeLessThan(loose * 0.95);
   await expect(page.getByTestId('priorities')).toContainText('10');
-  await expect(page.getByTestId('plan-status')).toContainText('Solving', { timeout: 5_000 });
-  await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
-  await expect(summary).toContainText('Unmet demand0 units');
   await page.reload();
   await expect(page.getByLabel('Few line clears weight')).toHaveValue('10');
 });

@@ -50,8 +50,8 @@ export function PlanPage() {
         <h2 className="text-base font-semibold tracking-tight">Draft plan {dataset.settings.planningYear}</h2>
         <p className="text-sm text-muted">
           Solved in your browser (HiGHS): shifts per product per machine that meet weekly demand, building stock ahead only as far as storage allows,
-          trucking B goods to A and pre-SFGs to B within the weekly truck limits. Each product run on a machine in a week costs a large line clear,
-          each further lot (max one shift) a small one. The priorities below weigh the goals. The solver stops within {100 * MIP_REL_GAP} % of the
+          trucking B goods to A and pre-SFGs to B within the weekly truck limits. Each campaign (a product on a machine, over one or more weeks in a
+          row) starts with a large line clear, each further lot (max one shift) with a small one. The priorities below weigh the goals. The solver stops within {100 * MIP_REL_GAP} % of the
           best plan or after {TIME_LIMIT_S} s.
         </p>
       </div>
@@ -160,9 +160,10 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
             ['Shifts planned', fmt(totalShifts)],
             ['Busiest machine', `${fmt(100 * plan.maxUtilisation)} %`],
             ['Large line clears', fmt(plan.lineClears.reduce((a, l) => a + l.large, 0))],
+            ['Line clear hours', fmt(plan.lineClears.reduce((a, l) => a + l.hours, 0))],
             ...trucks,
             ['Solve time', `${(plan.solveMs / 1000).toFixed(1)} s`],
-            ['Gap to optimum', plan.mipGap === undefined ? '–' : `≤ ${plan.mipGap < 0.001 ? '0.1' : fmt(100 * plan.mipGap)} %`],
+            ['Gap to optimum', plan.mipGap === undefined ? '–' : plan.mipGap >= 0.999 ? 'not proven' : `≤ ${plan.mipGap < 0.001 ? '0.1' : fmt(100 * plan.mipGap)} %`],
           ] as const
         ).map(([label, value]) => (
           <div key={label} className="rounded-xl border border-line bg-surface px-4 py-3">
