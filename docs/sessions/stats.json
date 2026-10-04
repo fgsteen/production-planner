@@ -1,0 +1,52 @@
+[
+  {
+    "id": "S01",
+    "goal": "Project setup: workflow, docs skeleton, session tooling, initial product questions",
+    "start": "2026-10-04T16:07:55Z",
+    "end": "2026-10-04T16:36:57.677Z",
+    "wallMinutes": 29,
+    "activeMinutes": 29,
+    "tokens": {
+      "input": 56,
+      "cacheWrite": 66354,
+      "cacheRead": 2243952,
+      "output": 47543,
+      "calls": 28,
+      "total": 2357905
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 56,
+        "cacheWrite": 66354,
+        "cacheRead": 2243952,
+        "output": 47543,
+        "calls": 28
+      }
+    }
+  },
+  {
+    "id": "S02",
+    "goal": "App skeleton + data model + demo data + site/machine overview (local, no deploy)",
+    "start": "2026-10-04T18:48:29+02:00",
+    "end": "2026-10-04T16:55:25.747Z",
+    "wallMinutes": 7,
+    "activeMinutes": 7,
+    "tokens": {
+      "input": 68,
+      "cacheWrite": 58996,
+      "cacheRead": 3209646,
+      "output": 34893,
+      "calls": 34,
+      "total": 3303603
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 68,
+        "cacheWrite": 58996,
+        "cacheRead": 3209646,
+        "output": 34893,
+        "calls": 34
+      }
+    }
+  }
+]

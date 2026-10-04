@@ -1,0 +1,92 @@
+# Domain model
+
+Updated in S01. Items marked _(?)_ are unconfirmed — see [open-questions.md](open-questions.md).
+
+```
+Site 1───* Machine 1───* Capability *───1 Product 1───* Demand (per month)
+  │           │           (rate, OEE)        │
+  │           └── Downtime (maintenance)     └── Packaging (units/crate, crates/pallet)
+  └── Holidays
+Site B ──transport──▶ Site A (next process step; all demand lands here)
+```
+
+## Glossary
+| Term | Meaning |
+| --- | --- |
+| **Semi-finished good / product** | What machines produce. |
+| **Lot** | One manufacturing order: started, produced and finished as a unit. For now, max one shift's output per lot (may be relaxed later). |
+| **Small line clear** | Changeover between two lots of the **same** product. |
+| **Large line clear** | Changeover when the machine switches to a **different** product. |
+| **Shift** | Planning time unit. 3 shifts/day, 7 days/week. |
+| **Campaign** | A run of consecutive lots of the same product on a machine. Very large campaigns are not practical for personnel or quality. |
+| **Crate / pallet** | Packaging: units per crate and crates per pallet (per product). Used for storage and transport. |
+
+## Sites
+- **Site B:** produces semi-finished goods only. Everything made at B is transported to A.
+- **Site A:** produces them too and hosts the next process step. Demand is consumed here.
+
+## Master data
+| Entity | Meaning | Fields |
+| --- | --- | --- |
+| **Site** | Geographical location (B, A). | name, is demand site, holidays (list of whole-day dates) |
+| **StorageLocation** | Pallet storage at a site. | name, site, capacity (pallets), accepts (goods produced locally / goods arriving by truck) |
+| **TruckLane** | Transport B → A. | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
+| **Settings** | Global planning settings. | max campaign length (shifts), shift length, shifts per day |
+| **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (list of whole-day dates) |
+| **Product** | A semi-finished good. | name, units per crate, crates per pallet |
+| **Capability** | Machine *can produce* product. Many-to-many. Some products are possible at both sites, some at only one. | machine, product, rate (units/h), OEE (%) |
+
+Line clear times don't depend on the product for now; they are set per machine.
+
+## Capacity
+- Available shifts per machine = calendar shifts − site holidays − machine maintenance.
+- Effective output per hour = rate × OEE (per machine–product pair).
+- A line clear **eats into the shift**: lot output = (shift length − line clear time) × rate × OEE.
+- Max lot size = one shift's output.
+
+## Demand, storage and transport
+- Forecast per product per year. Optionally a **per-month requirement** per product: what A
+  consumes that month. Demand isn't spread evenly through the year.
+- Producing earlier is fine. The only limit on producing ahead is **storage space**.
+- Storage is counted in **pallets**, as a total across products (not per product), per storage location:
+
+| Location | Site | Role |
+| --- | --- | --- |
+| **A in-factory storage** | A | Only goods **produced at A**. |
+| **A warehouse** | A | Goods **arriving from B** by truck. |
+| **B warehouse** | B | Goods produced at B, awaiting loading on a truck to A. |
+
+A-produced goods can't overflow into the A warehouse. The plan must make it visible when this
+limit is the bottleneck (R39).
+
+- **Trucks B → A:**
+  - **size:** pallets per truck, default **30**, editable;
+  - **frequency:** max trucks per week, default **5**, editable. The plan
+    also reports **how many trucks are actually needed**;
+  - **toggle:** whether trucks run on weekends and holidays.
+- Pallets per product = units ÷ (units per crate × crates per pallet).
+
+```
+B machines → B warehouse ──truck (≤ freq/week × 30 pallets)──▶ A warehouse  ─┐
+A machines ─────────────────────────────────────────────────▶ A in-factory ─┴→ consumption at A
+```
+
+## Campaigns
+- **Max campaign length:** one **global** limit, in **shifts**: max consecutive shifts of one product
+  on a machine (personnel and quality).
+
+## Planning
+- **Input:** demand per product per month, and the **priorities** chosen for this run:
+  least changeover time, least transport, balanced load, keep spare capacity.
+- **Output (plan):**
+  - lots per product per machine per month (→ quantity, shifts used, utilisation);
+  - number of small/large line clears, and total line clear time per machine;
+  - **transport:** units (and pallets) moved B → A;
+  - stock level in pallets per storage location per month vs capacity;
+  - trucks needed/used B → A;
+  - later: shift-level sequence.
+- Approach: [ADR 0003](decisions/0003-planning-engine.md). Explained to users on the site's **About page**.
+
+## Not modelled (now)
+- Finished goods, the next process step.
+- Raw material availability. Truck scheduling beyond frequency × size.
