@@ -173,5 +173,30 @@
         "calls": 118
       }
     }
+  },
+  {
+    "id": "S08",
+    "goal": "Count line clears per campaign and make the plan respond to priorities",
+    "start": "2026-10-04T22:58:39+02:00",
+    "end": "2026-10-04T21:20:12.898Z",
+    "wallMinutes": 22,
+    "activeMinutes": 22,
+    "tokens": {
+      "input": 118,
+      "cacheWrite": 98158,
+      "cacheRead": 7035655,
+      "output": 57471,
+      "calls": 59,
+      "total": 7191402
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 118,
+        "cacheWrite": 98158,
+        "cacheRead": 7035655,
+        "output": 57471,
+        "calls": 59
+      }
+    }
   }
 ]
