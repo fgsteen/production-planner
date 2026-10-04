@@ -98,5 +98,30 @@
         "calls": 82
       }
     }
+  },
+  {
+    "id": "S05",
+    "goal": "Stock per location, weekly truck cap, weekly machine plan (R42) and B→A transport breakdown (R43)",
+    "start": "2026-10-04T19:59:54+02:00",
+    "end": "2026-10-04T18:10:22.532Z",
+    "wallMinutes": 10,
+    "activeMinutes": 10,
+    "tokens": {
+      "input": 106,
+      "cacheWrite": 106617,
+      "cacheRead": 6853631,
+      "output": 56663,
+      "calls": 53,
+      "total": 7017017
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 106,
+        "cacheWrite": 106617,
+        "cacheRead": 6853631,
+        "output": 56663,
+        "calls": 53
+      }
+    }
   }
 ]
