@@ -3,6 +3,7 @@ import { MasterData } from './data/MasterData';
 import { seedDataset } from './model/seed';
 import { Overview } from './overview/Overview';
 import { DatasetProvider, useDataset } from './store/DatasetContext';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 const PAGES = [
   ['overview', 'Overview'],
@@ -15,9 +16,11 @@ const pageFromHash = (): Page => (window.location.hash === '#data' ? 'data' : 'o
 
 export function App() {
   return (
-    <DatasetProvider>
-      <Shell />
-    </DatasetProvider>
+    <ErrorBoundary>
+      <DatasetProvider>
+        <Shell />
+      </DatasetProvider>
+    </ErrorBoundary>
   );
 }
 
