@@ -35,7 +35,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. | M | agreed | S01 |
 | R19 | Respect max campaign length. | M | agreed | S01 |
 | R28 | Line clear time reduces the producing time of the shift it occurs in. | M | agreed | S01 |
-| R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. | M | agreed | S01 |
+| R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. First LP (no line clears) on the Plan page, S04. | M | building | S01 |
 | R22 | Choose priorities per plan run: changeover time, transport, load balance, spare capacity. | M | agreed | S01 |
 | R23 | Lots are at most one shift's output (configurable later). | M | agreed | S01 |
 | R24 | Plan is per shift (3/day, 7 days/week). | S | agreed | S01 |

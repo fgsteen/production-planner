@@ -11,3 +11,6 @@ Thumbs.db
 # test artifacts (screenshots, traces) - keep out of git
 test-results/
 playwright-report/
+
+# Obsidian vault settings (local to each user)
+.obsidian/
