@@ -1,90 +1,84 @@
 # Next session
 
-_Written at the end of S06 (2026-10-04)._
+_Written at the end of S07 (2026-10-04)._
 
 ## Where we are
 - **Live:** https://fgsteen.github.io/production-planner/. It redeploys on every push to `main`.
-- **Pages:** Overview, Master data (`#data`), Demand (`#demand`) and Plan (`#plan`).
-  - Master data tabs: Machines, **Characteristics** (new in S06), Products, Capabilities, Sites &
-    logistics, Initial stock, Settings.
-- **Products (S06, [ADR 0006](decisions/0006-product-characteristics-and-png-export.md)):**
-  - every product is one X-Y-Z combination, named after it unless it has a custom name;
-  - characteristics are labels only: demand and capabilities stay per product;
-  - the demo has 20 products (X K–N, Y 1–3, Z six tree names) on 8 machines, ~42 M units a year.
-- **Plan** (`src/plan/`): a continuous HiGHS LP in a Web Worker
-  ([ADR 0005](decisions/0005-storage-pools-and-weekly-trucks.md)):
-  - stock per storage pool;
-  - a weekly truck limit B → A;
-  - initial stock;
-  - penalised unmet demand.
-  - It has no line clears and no priorities yet.
-  - The 20-product demo solves to optimal in ~120 ms. A1 and A2 run at 100 % and B1 at 4 %, because
-    the only goal is least machine time.
-- **PNG download (R45):** every chart or table panel uses `src/ui/Panel.tsx` and has a download
-  icon (2×, light theme, wide tables whole).
-- `npm test` is green: 5 tooling tests, typecheck, 66 unit tests and 22 e2e tests.
+- **Plan** (`src/plan/`, [ADR 0007](decisions/0007-line-clear-milp-and-warm-start.md)): a weekly
+  MILP.
+  - **Line clears:** each run (product × machine × week) costs a large line clear, each further
+    lot a small one.
+  - **Goals:** four priority weights (sliders on the Plan page): balance 8, line clears 4,
+    transport 2, spare 1.
+  - **Pre-SMGs and lanes:** pre-SMGs are consumed 1:1 where their SMG is made; there are lanes
+    B → A and A → B.
+  - **Solve:** a 3-stage warm start (relax and drop small runs → fix runs → MIP, gap 1 %, 6 s).
+  - **Demo result:** about 6 s, 0 unmet, busiest machine about 80 %, about 1,040 large line
+    clears, gap shown as about 21 %. The HiGHS bound is weak.
+- **Demo:**
+  - 20 SMGs and 2 pre-SMGs (P21 → P12, P22 → P17; P22 is made only at A, so it is trucked);
+  - demand of about 34 M units, cut by a fifth in S07.
+- **Plan page panels:**
+  - priorities;
+  - summary;
+  - shifts per machine and product, with group-by and line clear columns;
+  - weekly machine plan;
+  - warehouses (new, R46);
+  - transport per lane.
+- `npm test` is green: 5 tooling tests, typecheck, 72 unit tests and 23 e2e tests.
 
-## Proposed goal for S07
-**Line clears and priorities.** Make the plan a MILP with line clears, and add priority weights with
-a small control panel. This covers R28, R23, R22 and R31, and moves R21 towards done.
+## Known weak spots (from S07)
+1. **The line clear weight barely moves the demo plan.** There are about 1,040 large line clears
+   at weight 4 and at 10. Within 6 s the MIP stage rarely improves on the heuristic start, so the
+   heuristic (`src/plan/solve.ts`) decides the plan.
+2. **Line clears are counted per week.** A product running in consecutive weeks pays a large
+   clear each week, so campaigns across weeks look worse than they are.
+3. **Week 1 starts without stock** in the demo, which squeezes the first weeks.
+4. **Each solve takes about 6 s**, and every slider move or data edit waits for it.
 
-**Ask first: line clears, grouping (R44), or the new requests after S06?**
-- New requests from the user (recorded after S06, not built yet):
-  - a **warehouse panel** on the Plan page (R46);
-  - **pre-SMG products** consumed at B (R47), with an **A → B truck lane** (R48).
-- R47/R48 change the data model and the LP core (a bill of materials and a second lane). As with the
-  characteristics, consider doing them **before line clears**, so the MILP is built and tuned on the
-  final model. Their open questions must be answered first.
-- R46 is small: `PlanResult.storage` already has pallets per pool per week. It needs units per
-  product per location. It could ride along with any session.
-- With 20 products the demand grid and plan tables scroll sideways on narrow screens.
-- If that bothers the user more, do R44 first. Ask the grouping UX question in
-  [open-questions.md](open-questions.md).
+## Proposed goal for S08
+**Make the plan respond to priorities and count line clears properly.**
+- Model a run as continuing into the next week without a new large clear. Add a binary
+  `cont[p,m,w]` or a changeover variable `start[p,m,w] ≥ run[w] − run[w−1]`, and charge the clear
+  only on starts. This also makes R19 (max campaign length) expressible.
+- Rework the warm start so the weights steer it:
+  - e.g. rounding driven by the weighted relaxation, or a cyclic "every k weeks" schedule per
+    product–machine pair;
+  - measure line clears, utilisation and transport at weights 0, 4 and 10.
+- An e2e test that a higher line clear weight gives fewer line clears on the demo.
+- Show the solve progress or cancel it, since solves take seconds now.
 
-### First steps (line clears)
-1. Ask the user for the default priority ranking (open question).
-2. Line clears (ADR 0003):
-   - a binary `run[p,m,w]` with `hours ≤ available × run`;
-   - each run costs one large line clear (hours lost on that machine);
-   - integer lots ≤ one shift's output (R23).
-   - The demo now has 45 capabilities × 52 weeks ≈ 2.3k binaries. Measure the solve time. Set
-     `mip_rel_gap` (e.g. 1 %) and `time_limit` (e.g. 10 s), and show the gap on the Plan page.
-3. Priority weights (R22): line clear time, transport, load balance, spare capacity.
-   - Show sliders or a ranking on the Plan page and re-solve on change, debounced.
-4. Show line clears per machine (R31) in the shifts table or the weekly chart.
-5. Tests:
-   - LP: a line clear makes campaigns longer; the transport weight moves production to A;
-   - e2e: change a weight and the plan changes.
+### First steps
+1. Put the measurement script back. It solves the seed at several weights and prints the large
+   clears, U, unmet and the time per stage. The S07 version was a throwaway vitest file in the
+   scratchpad. Keep it out of `src/` or the build's typecheck fails, because `process` is
+   untyped.
+2. Add the start variables and compare the counts.
+3. Then tune the warm start.
 
 ### Questions for the user
 See [open-questions.md](open-questions.md):
-- pre-SMG details and the A → B lane (needed before R47/R48);
-- default priorities;
-- grouping UX;
+- may an SMG with a pre-SMG also be made at A?
+- should the demo start with some stock?
+- is counting campaigns per week acceptable?
 - transit time;
 - whole pallets;
 - weekend consumption at A;
 - Excel dropdowns.
 
 ## Later sessions (rough order, to be confirmed with the user)
-- **Pre-SMG products and the A → B lane (R47, R48):**
-  - pre-SMG products;
-  - bill-of-materials consumption at B;
-  - an inbound store at B;
-  - a second lane in the LP and in the transport breakdown;
-  - the Overview map shows the A → B edge.
-- **Warehouse panel (R46):** per storage location, weekly stacked pallets by product vs capacity,
-  with a table toggle.
-- **Grouping (R44):**
-  - group, filter or expand by X/Y/Z in the demand grid and the plan views;
-  - `productName` and `Dataset.characteristics` are the building blocks.
+- **Group-by everywhere (rest of R44):** the weekly machine plan, transport and warehouse views
+  (sum products per X/Y/Z variant).
 - **Excel (R60–R63):**
-  - a template with one tab per entity, including characteristics, and dropdowns;
+  - a template with one tab per entity, including characteristics and the pre-SMG flag, with
+    dropdowns;
   - import with per-row errors;
-  - export of data and of plan results.
-  - ExcelJS, since writing dropdowns needs data validation (record it in an ADR).
-- Visualisation (R30–R33, R37–R39): Sankey, utilisation heatmap, line clear time, stock vs storage
-  (the data is in `PlanResult.storage`), bottlenecks. New panels should use `Panel` so they get the
-  PNG download.
-- **About page (R50, `#about`):** condensed from ADRs 0003 and 0005.
-- Shift-level timeline (R34); compare plans (R25).
+  - export of data and of plan results;
+  - ExcelJS, recorded in an ADR.
+- **Visualisation (R30, R33, R37–R39):**
+  - Sankey;
+  - utilisation heatmap;
+  - bottlenecks (shadow prices from the fixed-run LP).
+  - New panels should use `Panel`.
+- **About page (R50, `#about`):** condensed from ADRs 0003, 0005 and 0007.
+- **Further features:** shift-level timeline (R34); compare plans (R25).

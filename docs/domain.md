@@ -24,7 +24,7 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 ## Sites
 - **The network is fixed** (user decision, S03): exactly two sites, B and A, and one truck lane
   B → A. Their properties are editable; sites and lanes can't be added or removed.
-  *Planned (after S06, R48):* a second lane **A → B** for pre-SMG products.
+  A second lane **A → B** carries pre-SMG products (S07, R48).
 - **Site B:** produces semi-finished goods only. Everything made at B is transported to A.
 - **Site A:** produces them too and hosts the next process step. Demand is consumed here.
 
@@ -33,10 +33,10 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 | --- | --- | --- |
 | **Site** | Geographical location (B, A). | name, is demand site, holidays (recurring `MM-DD` days) |
 | **StorageLocation** | Pallet storage at a site. | name, site, capacity (pallets), accepts (goods produced locally / goods arriving by truck) |
-| **TruckLane** | Transport B → A. | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
+| **TruckLane** | Transport B → A, and A → B for pre-SMGs (S07). | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
 | **Settings** | Global planning settings. | planning year (ISO week-year), max campaign length (shifts), shift length |
 | **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (recurring `MM-DD` days) |
-| **Product** | A semi-finished good. | custom name (empty = `X-Y-Z`), a variant of each characteristic, units per crate, crates per pallet |
+| **Product** | A semi-finished good (SMG), or a pre-SMG: an input consumed 1:1 where the SMGs that use it are made (S07). | custom name (empty = `X-Y-Z`), a variant of each characteristic, units per crate, crates per pallet, is pre-SMG, uses pre-SMG |
 | **Characteristic** | One of three product dimensions, X, Y and Z, each with up to 8 variants. Names of characteristics and variants are editable. | name, variants |
 | **Capability** | Machine *can produce* product. Many-to-many. Some products are possible at both sites, some at only one. | machine, product, rate (units/h), OEE (%) |
 
@@ -75,7 +75,7 @@ Line clear times don't depend on the product for now; they are set per machine.
 | --- | --- | --- |
 | **A in-factory storage** | A | Only goods **produced at A**. |
 | **A warehouse** | A | Goods **arriving from B** by truck. |
-| **B warehouse** | B | Goods produced at B, awaiting loading on a truck to A. |
+| **B warehouse** | B | Goods produced at B, awaiting loading on a truck to A, and pre-SMGs trucked in from A (shared capacity, S07). |
 
 A-produced goods can't overflow into the A warehouse. The plan must make it visible when this
 limit is the bottleneck (R39).

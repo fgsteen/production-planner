@@ -35,14 +35,14 @@ Terms: see the glossary in [domain.md](domain.md).
 | R20 | Input a yearly forecast: required quantity per product, in units. | M | done | S01 |
 | R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread by A's open days — S04/S05, ADR 0004/0005). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
 | R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | done | S01 |
-| R47 | **Pre-SMG products:** a few products, made on the same machine types at A or B, are inputs consumed at B to make SMGs already in the mix. Their demand at B follows B's production of those SMGs (a bill of materials). Small quantities compared with the SMGs. Details are open questions. | M | agreed | after S06 |
-| R48 | Truck lane A → B for pre-SMG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. | M | agreed | after S06 |
+| R47 | **Pre-SMG products:** regular products (X-Y-Z) flagged pre-SMG, made at A or B. An SMG may use one pre-SMG, 1:1, consumed in the same week where the SMG is made (only B in the demo). Pre-SMGs have no demand of their own and share the B warehouse (S07, ADR 0007). | M | done | after S06 |
+| R48 | Truck lane A → B for pre-SMG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. Demo: 3 trucks × 30 pallets, weekdays (S07). | M | done | after S06 |
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. Weekly cap (S05, ADR 0005). | M | done | S01 |
 | R19 | Respect max campaign length. | M | agreed | S01 |
-| R28 | Line clear time reduces the producing time of the shift it occurs in. | M | agreed | S01 |
-| R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. LP on the Plan page with storage and trucks (S04–S05); no line clears yet. | M | building | S01 |
-| R22 | Choose priorities per plan run: changeover time, transport, load balance, spare capacity. | M | agreed | S01 |
-| R23 | Lots are at most one shift's output (configurable later). | M | agreed | S01 |
+| R28 | Line clear time reduces the producing time of the shift it occurs in. Weekly MILP: a large clear per run, a small one per further lot (S07, ADR 0007). | M | done | S01 |
+| R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. MILP on the Plan page with storage, trucks, line clears and priorities (S04–S07). Open: the line clear weight barely moves the demo plan; campaigns across weeks. | M | building | S01 |
+| R22 | Choose priorities per plan run: changeover time, transport, load balance, spare capacity. Sliders 0–10 on the Plan page, saved in settings; default balance 8, line clears 4, transport 2, spare 1 (S07). | M | done | S01 |
+| R23 | Lots are at most one shift's output (configurable later). Lot count is continuous in the MILP (S07). | M | done | S01 |
 | R24 | Plan is per shift (3/day, 7 days/week). | S | agreed | S01 |
 | R25 | Compare plans generated with different priorities. | C | idea | S01 |
 
@@ -50,7 +50,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
 | R30 | Load/utilisation per machine. | M | agreed | S01 |
-| R31 | Number of small/large line clears and total line clear time per machine. | M | agreed | S01 |
+| R31 | Number of small/large line clears and total line clear time per machine. Columns in the shifts table (S07). | M | done | S01 |
 | R32 | Transport volume B → A in units and pallets. | M | done | S01 |
 | R37 | Stock level (pallets) per storage location per month vs capacity. Detailed by R46 (per week, with product mix). | S | agreed | S01 |
 | R38 | Trucks needed B → A per week/month vs allowed truck capacity. | M | done | S01 |
@@ -61,8 +61,8 @@ Terms: see the glossary in [domain.md](domain.md).
 | R43 | Transport breakdown B → A: per ISO week and product, the quantity shipped (units, pallets) and trucks used vs the truck limit. | M | done | S04 |
 | R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
-| R44 | Scale to 20–50 products: tables and charts (demand grid, plan tables, weekly views) stay usable without wide sideways scrolling. Group or filter by characteristic X/Y/Z, or expand and collapse groups. | M | agreed | S05 |
-| R46 | Warehouse panel on the Plan page: one section per storage location, showing per ISO week the stock in pallets by product (the product mix) against its capacity. Stacked bars per week with a capacity line, and a toggle to a week × product table, like the weekly machine plan (R42). | M | agreed | after S06 |
+| R44 | Scale to 20–50 products: tables and charts (demand grid, plan tables, weekly views) stay usable without wide sideways scrolling. Group or filter by characteristic X/Y/Z, or expand and collapse groups. S07: "Group by" product/X/Y/Z in the demand grid (read-only sums) and the shifts table; not yet in the weekly views. | M | building | S05 |
+| R46 | Warehouse panel on the Plan page: one section per storage location, showing per ISO week the stock in pallets by product (the product mix) against its capacity. Stacked bars per week with a capacity line, and a toggle to a week × product table, like the weekly machine plan (R42). Built in S07 (locations pooled as in the MILP). | M | done | after S06 |
 | R45 | Every panel with a chart or table has a small icon to download it as a PNG for presentations (2× resolution, light theme). Wide tables export whole; panel controls are left out. | M | done | S05 |
 
 ## Excel
