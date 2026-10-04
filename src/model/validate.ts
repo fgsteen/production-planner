@@ -111,6 +111,9 @@ export function validateDataset(ds: Dataset): string[] {
     if (!productIds.has(c.productId)) err(`Capability ${key}: unknown product`);
     if (!(c.ratePerHour > 0)) err(`Capability ${key}: rate must be > 0`);
     if (!(c.oeePct > 0 && c.oeePct <= 100)) err(`Capability ${key}: OEE must be in (0, 100] %`);
+    // R66: an SFG that uses a pre-SFG is made only away from the demand site (at B in the demo).
+    const site = ds.sites.find((s) => s.id === ds.machines.find((m) => m.id === c.machineId)?.siteId);
+    if (site?.isDemandSite && byId.get(c.productId)?.preSfgId) err(`Capability ${key}: ${c.productId} uses a pre-SFG, so it can't be made at ${site.name}`);
   }
   for (const p of ds.products) {
     if (!ds.capabilities.some((c) => c.productId === p.id)) err(`Product ${p.id}: no machine can produce it`);

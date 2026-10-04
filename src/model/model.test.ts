@@ -34,6 +34,12 @@ describe('seed dataset', () => {
     expect(seedDataset.products.every((p) => p.name === '')).toBe(true);
   });
 
+  it('rejects an SFG with a pre-SFG on a machine at the demand site (R66)', () => {
+    expect(validateDataset(seedDataset)).toEqual([]);
+    const atA = { ...seedDataset, capabilities: [...seedDataset.capabilities, { machineId: 'A1', productId: 'P12', ratePerHour: 100, oeePct: 80 }] };
+    expect(validateDataset(atA)).toEqual(["Capability A1/P12: P12 uses a pre-SFG, so it can't be made at Site A"]);
+  });
+
   it('has the three storage locations, a B → A and an A → B truck lane', () => {
     expect(seedDataset.storageLocations.map((l) => `${l.siteId}:${l.accepts}`).sort()).toEqual(['A:inbound', 'A:local', 'B:local']);
     // 10 trucks/week rather than the default 5: the demo's B-only products need ~7.4 (S05).
