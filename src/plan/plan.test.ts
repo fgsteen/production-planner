@@ -23,7 +23,8 @@ const tiny = (weeklyDemand: number): Dataset => ({
     largeLineClearMin: 0,
     maintenance: [],
   })),
-  products: [{ id: 'P', name: 'P', unitsPerCrate: 1, cratesPerPallet: 1 }],
+  characteristics: [],
+  products: [{ id: 'P', name: 'P', variants: {}, unitsPerCrate: 1, cratesPerPallet: 1 }],
   capabilities: [
     { machineId: 'M1', productId: 'P', ratePerHour: 100, oeePct: 100 },
     { machineId: 'M2', productId: 'P', ratePerHour: 50, oeePct: 100 },
@@ -53,7 +54,8 @@ const twoSites = (opts: { trucks: number; storage?: number; initial?: Dataset['i
     largeLineClearMin: 0,
     maintenance: [],
   })),
-  products: [{ id: 'P', name: 'P', unitsPerCrate: 10, cratesPerPallet: 1 }],
+  characteristics: [],
+  products: [{ id: 'P', name: 'P', variants: {}, unitsPerCrate: 10, cratesPerPallet: 1 }],
   capabilities: [
     { machineId: 'MB', productId: 'P', ratePerHour: 100, oeePct: 100 },
     { machineId: 'MA', productId: 'P', ratePerHour: 50, oeePct: 100 },

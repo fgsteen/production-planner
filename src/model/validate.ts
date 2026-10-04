@@ -1,4 +1,5 @@
-import type { Dataset } from './types';
+import { combinationName, combinationKey, productName } from './products';
+import type { Dataset, Product } from './types';
 import { isoWeeksInYear } from './weeks';
 
 const MONTH_DAY = /^\d{2}-\d{2}$/;
@@ -51,6 +52,42 @@ export function validateDataset(ds: Dataset): string[] {
     }
     if (m.smallLineClearMin > m.largeLineClearMin) err(`Machine ${m.id}: small line clear is longer than large`);
     for (const d of m.maintenance) if (!isMonthDay(d)) err(`Machine ${m.id}: invalid maintenance day "${d}" (expected MM-DD)`);
+  }
+
+  const charIds = uniqueIds('characteristic', ds.characteristics);
+  for (const c of ds.characteristics) {
+    if (!c.name.trim()) err(`Characteristic ${c.id}: name is empty`);
+    if (c.variants.length === 0) err(`Characteristic ${c.name}: needs at least one variant`);
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const v of c.variants) {
+      if (ids.has(v.id)) err(`Characteristic ${c.name}: duplicate variant id "${v.id}"`);
+      ids.add(v.id);
+      // Names make up product names, so they must be unique and non-empty.
+      if (!v.name.trim()) err(`Characteristic ${c.name}: a variant has no name`);
+      else if (names.has(v.name)) err(`Characteristic ${c.name}: duplicate variant "${v.name}"`);
+      names.add(v.name);
+    }
+  }
+
+  const byCombination = new Map<string, string>();
+  for (const p of ds.products) {
+    for (const c of ds.characteristics) {
+      if (!c.variants.some((v) => v.id === p.variants[c.id])) err(`Product ${p.id}: no ${c.name} variant chosen`);
+    }
+    for (const id of Object.keys(p.variants)) if (!charIds.has(id)) err(`Product ${p.id}: unknown characteristic "${id}"`);
+    const key = combinationKey(ds.characteristics, p.variants);
+    const other = byCombination.get(key);
+    if (other) err(`Products ${other} and ${p.id} are both ${combinationName(ds.characteristics, p.variants)}`);
+    else byCombination.set(key, p.id);
+  }
+  const named = new Map<string, Product>();
+  for (const p of ds.products) {
+    const name = productName(ds, p);
+    const other = named.get(name);
+    // Two default names are equal only for equal combinations, flagged above.
+    if (other && (p.name.trim() || other.name.trim())) err(`Products ${other.id} and ${p.id} are both named "${name}"`);
+    else if (!other) named.set(name, p);
   }
 
   for (const p of ds.products) {

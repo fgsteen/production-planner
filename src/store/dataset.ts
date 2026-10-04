@@ -1,6 +1,7 @@
 // Dataset store: a pure reducer plus JSON (de)serialisation. React wiring lives in DatasetContext.tsx.
+import { firstFreeCombination } from '../model/products';
 import { seedDataset } from '../model/seed';
-import type { Capability, Dataset, Demand, Id, Machine, Product, Settings, Site, StorageLocation, TruckLane } from '../model/types';
+import type { Capability, Characteristic, Dataset, Demand, Id, Machine, Product, Settings, Site, StorageLocation, TruckLane } from '../model/types';
 
 export type DatasetAction =
   | { type: 'replace'; dataset: Dataset }
@@ -11,6 +12,11 @@ export type DatasetAction =
   | { type: 'addStorage'; siteId: Id }
   | { type: 'removeStorage'; id: Id }
   | { type: 'updateTruckLane'; id: Id; patch: Partial<Omit<TruckLane, 'id'>> }
+  | { type: 'renameCharacteristic'; id: Id; name: string }
+  | { type: 'addVariant'; characteristicId: Id }
+  | { type: 'renameVariant'; characteristicId: Id; variantId: Id; name: string }
+  /** Ignored while a product uses the variant. */
+  | { type: 'removeVariant'; characteristicId: Id; variantId: Id }
   | { type: 'updateMachine'; id: Id; patch: Partial<Omit<Machine, 'id'>> }
   | { type: 'addMachine'; siteId: Id }
   | { type: 'removeMachine'; id: Id }
@@ -39,6 +45,14 @@ export function nextId(prefix: string, taken: Iterable<Id>, width = 2): Id {
 /** Applies `patch` to the item with `id`. */
 function patchById<T extends { id: Id }>(items: T[], id: Id, patch: NoInfer<Partial<Omit<T, 'id'>>>): T[] {
   return items.map((x) => (x.id === id ? { ...x, ...patch } : x));
+}
+
+/** Most variants per characteristic (R17). */
+export const MAX_VARIANTS = 8;
+
+/** Applies `fn` to the characteristic with `id`. */
+function patchCharacteristic(ds: Dataset, id: Id, fn: (c: Characteristic) => Characteristic): Dataset {
+  return { ...ds, characteristics: ds.characteristics.map((c) => (c.id === id ? fn(c) : c)) };
 }
 
 /** Applies `fn` to the product's demand, creating an empty one if needed. */
@@ -80,6 +94,23 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
     case 'updateTruckLane':
       return { ...ds, truckLanes: patchById(ds.truckLanes, action.id, action.patch) };
 
+    case 'renameCharacteristic':
+      return patchCharacteristic(ds, action.id, (c) => ({ ...c, name: action.name }));
+    case 'addVariant':
+      return patchCharacteristic(ds, action.characteristicId, (c) => {
+        if (c.variants.length >= MAX_VARIANTS) return c;
+        const id = nextId(c.id, c.variants.map((v) => v.id), 1);
+        return { ...c, variants: [...c.variants, { id, name: `New ${id}` }] };
+      });
+    case 'renameVariant':
+      return patchCharacteristic(ds, action.characteristicId, (c) => ({
+        ...c,
+        variants: c.variants.map((v) => (v.id === action.variantId ? { ...v, name: action.name } : v)),
+      }));
+    case 'removeVariant':
+      if (ds.products.some((p) => p.variants[action.characteristicId] === action.variantId)) return ds;
+      return patchCharacteristic(ds, action.characteristicId, (c) => ({ ...c, variants: c.variants.filter((v) => v.id !== action.variantId) }));
+
     case 'updateMachine':
       return { ...ds, machines: patchById(ds.machines, action.id, action.patch) };
     case 'addMachine': {
@@ -106,7 +137,10 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
       return { ...ds, products: patchById(ds.products, action.id, action.patch) };
     case 'addProduct': {
       const id = nextId('P', ds.products.map((p) => p.id));
-      return { ...ds, products: [...ds.products, { id, name: `New product ${id}`, unitsPerCrate: 24, cratesPerPallet: 40 }] };
+      // The first unused combination, named after it; if all are taken, a duplicate that validation flags.
+      const variants = firstFreeCombination(ds.characteristics, ds.products) ?? Object.fromEntries(ds.characteristics.map((c) => [c.id, c.variants[0]?.id ?? '']));
+      const product: Product = { id, name: '', variants, unitsPerCrate: 24, cratesPerPallet: 40 };
+      return { ...ds, products: [...ds.products, product] };
     }
     case 'removeProduct':
       return {
@@ -187,9 +221,13 @@ export function parseDataset(text: string): ParseResult {
   }
   if (obj.demand !== undefined && !Array.isArray(obj.demand)) return { ok: false, error: 'Invalid "demand" list' };
   if (obj.initialStock !== undefined && !Array.isArray(obj.initialStock)) return { ok: false, error: 'Invalid "initialStock" list' };
+  if (obj.characteristics !== undefined && !Array.isArray(obj.characteristics)) return { ok: false, error: 'Invalid "characteristics" list' };
   const ds = raw as Dataset;
   const dataset: Dataset = {
     ...ds,
+    // Files from before S06 have no characteristics: take the demo's, give each product its own
+    // combination, and keep its old name as a custom name.
+    ...withCharacteristics(ds),
     // Settings added after v1 shipped (e.g. planningYear) fall back to the demo defaults.
     settings: { ...seedDataset.settings, ...(obj.settings as Partial<Settings>) },
     // Files from before S04: no demand, and holidays/maintenance as full dates.
@@ -201,6 +239,16 @@ export function parseDataset(text: string): ParseResult {
     machines: ds.machines.map((m) => (isObject(m) ? { ...m, maintenance: toMonthDays(m.maintenance) } : m)),
   };
   return { ok: true, dataset };
+}
+
+function withCharacteristics(ds: Dataset): Pick<Dataset, 'characteristics' | 'products'> {
+  const characteristics = ds.characteristics ?? seedDataset.characteristics;
+  const products: Product[] = [];
+  for (const p of ds.products) {
+    if (!isObject(p) || isObject(p.variants)) products.push(p);
+    else products.push({ ...p, name: p.name ?? '', variants: firstFreeCombination(characteristics, products.filter(isObject)) ?? {} });
+  }
+  return { characteristics, products };
 }
 
 // --- persistence --------------------------------------------------------------------------------

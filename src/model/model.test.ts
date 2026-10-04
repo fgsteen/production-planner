@@ -26,6 +26,12 @@ describe('seed dataset', () => {
     expect(sitesPerProduct.some((s) => s.size === 1 && s.has('A'))).toBe(true);
   });
 
+  it('has 20 products, each a distinct X-Y-Z combination (R18)', () => {
+    expect(seedDataset.products).toHaveLength(20);
+    expect(seedDataset.characteristics.map((c) => [c.name, c.variants.length])).toEqual([['X', 4], ['Y', 3], ['Z', 6]]);
+    expect(seedDataset.products.every((p) => p.name === '')).toBe(true);
+  });
+
   it('has the three storage locations and a B → A truck lane', () => {
     expect(seedDataset.storageLocations.map((l) => `${l.siteId}:${l.accepts}`).sort()).toEqual(['A:inbound', 'A:local', 'B:local']);
     // 10 trucks/week rather than the default 5: the demo's B-only products need ~7.4 (S05).
@@ -97,7 +103,7 @@ describe('capacity', () => {
   });
 
   it('computes units per pallet', () => {
-    expect(unitsPerPallet({ id: 'x', name: 'x', unitsPerCrate: 24, cratesPerPallet: 40 })).toBe(960);
+    expect(unitsPerPallet({ id: 'x', name: 'x', variants: {}, unitsPerCrate: 24, cratesPerPallet: 40 })).toBe(960);
   });
 
   it('handles dates and weekdays', () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { productName } from '../model/products';
 import { seedDataset } from '../model/seed';
 import { validateDataset } from '../model/validate';
 import { STORAGE_KEY, datasetReducer, exportJson, loadDataset, nextId, parseDataset, saveDataset } from './dataset';
@@ -39,10 +40,10 @@ describe('datasetReducer', () => {
 
   it('adds products and machines with fresh ids', () => {
     const ds = datasetReducer(datasetReducer(seedDataset, { type: 'addProduct' }), { type: 'addMachine', siteId: 'B' });
-    expect(ds.products.at(-1)!.id).toBe('P11');
+    expect(ds.products.at(-1)!.id).toBe('P21');
     expect(ds.machines.at(-1)).toMatchObject({ id: 'B5', siteId: 'B' });
     // A new product has no capability yet, which validation reports.
-    expect(validateDataset(ds)).toEqual(['Product P11: no machine can produce it']);
+    expect(validateDataset(ds)).toEqual(['Product P21: no machine can produce it']);
   });
 
   it('updates machine and product fields; reset restores the seed', () => {
@@ -104,6 +105,46 @@ describe('datasetReducer: demand', () => {
   });
 });
 
+describe('characteristics', () => {
+  const p01 = (ds: typeof seedDataset) => productName(ds, ds.products[0]);
+
+  it('names products X-Y-Z by default; renamed variants carry through, a custom name wins', () => {
+    expect(p01(seedDataset)).toBe('K-1-Alder');
+    let ds = datasetReducer(seedDataset, { type: 'renameVariant', characteristicId: 'Z', variantId: 'Z1', name: 'Aspen' });
+    expect(p01(ds)).toBe('K-1-Aspen');
+    ds = datasetReducer(ds, { type: 'updateProduct', id: 'P01', patch: { name: 'Special' } });
+    expect(p01(ds)).toBe('Special');
+    ds = datasetReducer(ds, { type: 'updateProduct', id: 'P01', patch: { name: '' } });
+    expect(p01(ds)).toBe('K-1-Aspen');
+    expect(validateDataset(ds)).toEqual([]);
+  });
+
+  it('adds variants up to 8 and removes only unused ones', () => {
+    let ds = seedDataset;
+    for (let i = 0; i < 6; i++) ds = datasetReducer(ds, { type: 'addVariant', characteristicId: 'Y' });
+    expect(ds.characteristics[1].variants.map((v) => v.id)).toEqual(['Y1', 'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'Y7', 'Y8']);
+    ds = datasetReducer(ds, { type: 'removeVariant', characteristicId: 'Y', variantId: 'Y1' }); // used by P01
+    ds = datasetReducer(ds, { type: 'removeVariant', characteristicId: 'Y', variantId: 'Y5' });
+    expect(ds.characteristics[1].variants.map((v) => v.id)).toEqual(['Y1', 'Y2', 'Y3', 'Y4', 'Y6', 'Y7', 'Y8']);
+  });
+
+  it('gives a new product the first unused combination', () => {
+    const ds = datasetReducer(seedDataset, { type: 'addProduct' });
+    expect(productName(ds, ds.products.at(-1)!)).toBe('K-1-Cedar'); // K-1-Alder and K-1-Birch are taken
+  });
+
+  it('flags duplicate combinations, duplicate names and missing variants', () => {
+    let ds = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P02', patch: { variants: { X: 'X1', Y: 'Y1', Z: 'Z1' } } });
+    expect(validateDataset(ds)).toEqual(['Products P01 and P02 are both K-1-Alder']);
+    ds = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P02', patch: { name: 'K-1-Alder' } });
+    expect(validateDataset(ds)).toEqual(['Products P01 and P02 are both named "K-1-Alder"']);
+    ds = datasetReducer(seedDataset, { type: 'updateProduct', id: 'P02', patch: { variants: { X: 'X1', Y: 'Y9', Z: 'Z2' } } });
+    expect(validateDataset(ds)).toEqual(['Product P02: no Y variant chosen']);
+    ds = datasetReducer(seedDataset, { type: 'renameVariant', characteristicId: 'X', variantId: 'X2', name: 'K' });
+    expect(validateDataset(ds)).toContain('Characteristic X: duplicate variant "K"');
+  });
+});
+
 describe('nextId', () => {
   it('fills the first gap', () => {
     expect(nextId('P', ['P01', 'P03'])).toBe('P02');
@@ -136,6 +177,20 @@ describe('JSON round trip', () => {
     expect(parsed.dataset.sites[0].holidays).toEqual(['12-25', '01-01']);
     expect(parsed.dataset.machines[0].maintenance).toEqual(['02-15']);
     expect(validateDataset(parsed.dataset)).toEqual([]);
+  });
+
+  it('upgrades pre-S06 files: demo characteristics, a combination per product, old names kept', () => {
+    const { characteristics: _omit, ...old } = seedDataset;
+    const file = { ...old, products: old.products.slice(0, 3).map(({ variants: _v, ...p }, i) => ({ ...p, name: `Old ${i}` })) };
+    const parsed = parseDataset(JSON.stringify(file));
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.dataset.characteristics).toEqual(seedDataset.characteristics);
+    expect(parsed.dataset.products.map((p) => p.variants)).toEqual([
+      { X: 'X1', Y: 'Y1', Z: 'Z1' },
+      { X: 'X1', Y: 'Y1', Z: 'Z2' },
+      { X: 'X1', Y: 'Y1', Z: 'Z3' },
+    ]);
+    expect(parsed.dataset.products.map((p) => productName(parsed.dataset, p))).toEqual(['Old 0', 'Old 1', 'Old 2']);
   });
 
   it.each([

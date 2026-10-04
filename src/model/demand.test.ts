@@ -77,7 +77,8 @@ describe('checkCapacity', () => {
     machines: [
       { id: 'M', name: 'M', siteId: 'S', calendar: { shiftsPerDay: 1, workingWeekdays: [1, 2, 3, 4, 5] }, smallLineClearMin: 0, largeLineClearMin: 0, maintenance: [] },
     ],
-    products: [{ id: 'P', name: 'P', unitsPerCrate: 1, cratesPerPallet: 1 }],
+    characteristics: [],
+    products: [{ id: 'P', name: 'P', variants: {}, unitsPerCrate: 1, cratesPerPallet: 1 }],
     capabilities: [{ machineId: 'M', productId: 'P', ratePerHour: 125, oeePct: 80 }],
     demand: [{ productId: 'P', yearlyUnits, weekOverrides }],
   });

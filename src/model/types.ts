@@ -52,9 +52,25 @@ export interface Machine {
   maintenance: MonthDay[];
 }
 
-export interface Product {
+/** One value of a characteristic, e.g. `K` of X. */
+export interface Variant {
   id: Id;
   name: string;
+}
+
+/** A product dimension (X, Y or Z). Names of characteristics and variants are editable. */
+export interface Characteristic {
+  id: Id;
+  name: string;
+  variants: Variant[];
+}
+
+export interface Product {
+  id: Id;
+  /** Custom name; empty means the default, the variant names joined as `X-Y-Z` (see productName). */
+  name: string;
+  /** Characteristic id → variant id. Each product is one combination; no two products share one. */
+  variants: Record<Id, Id>;
   unitsPerCrate: number;
   cratesPerPallet: number;
 }
@@ -100,6 +116,8 @@ export interface Dataset {
   sites: Site[];
   storageLocations: StorageLocation[];
   truckLanes: TruckLane[];
+  /** X, Y and Z, in display order. */
+  characteristics: Characteristic[];
   machines: Machine[];
   products: Product[];
   capabilities: Capability[];
