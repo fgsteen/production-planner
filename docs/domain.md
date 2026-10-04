@@ -22,6 +22,8 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 | **Crate / pallet** | Packaging: units per crate and crates per pallet (per product). Used for storage and transport. |
 
 ## Sites
+- **The network is fixed** (user decision, S03): exactly two sites, B and A, and one truck lane
+  B → A. Their properties are editable; sites and lanes can't be added or removed.
 - **Site B:** produces semi-finished goods only. Everything made at B is transported to A.
 - **Site A:** produces them too and hosts the next process step. Demand is consumed here.
 
@@ -40,6 +42,9 @@ Line clear times don't depend on the product for now; they are set per machine.
 
 ## Capacity
 - Available shifts per machine = calendar shifts − site holidays − machine maintenance.
+- **Holidays and maintenance days repeat every year** (user decision, S03, "for now"): only month
+  and day count, so they apply to whatever planning year is set. Moveable feasts (Easter,
+  Ascension) must be re-entered if the year changes.
 - Effective output per hour = rate × OEE (per machine–product pair).
 - A line clear **eats into the shift**: lot output = (shift length − line clear time) × rate × OEE.
 - Max lot size = one shift's output.

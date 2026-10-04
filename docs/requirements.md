@@ -14,7 +14,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R7 | Seed the app with generic demo data (sites B and A, a set of machines and products, overlapping capabilities). | M | done | S01 |
 | R6 | Packaging per product: units per crate, crates per pallet. | M | done | S01 |
 | R8 | Export/import the whole dataset as JSON (scenarios). | S | done | S01 |
-| R9 | Configurable holidays (per site) and planned maintenance (per machine), as lists of whole-day dates. They reduce available shifts. | M | done | S01 |
+| R9 | Configurable holidays (per site) and planned maintenance (per machine), as lists of whole-day dates. They reduce available shifts. They **repeat every year** (month and day only; S03). | M | building | S01 |
 | R11 | Storage locations with capacity in total pallets: A in-factory (A-produced only), A warehouse (from B), B warehouse. | M | done | S01 |
 | R12 | Trucks B → A: max trucks per week, size in pallets (default 30), toggle for running on weekends/holidays. Default 5 trucks/week. | M | done | S01 |
 | R13 | Global max campaign length in shifts. | M | done | S01 |

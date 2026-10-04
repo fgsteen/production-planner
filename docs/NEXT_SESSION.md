@@ -19,12 +19,15 @@ _Written at the end of S03 (2026-10-04)._
 Covers R20 and R26, the start of R21, and R35.
 
 ### First steps
+0. **Recurring holidays/maintenance (R9, ~10 min).** User decision: they repeat every year.
+   - Recommended: store them as `MM-DD`. `parseDataset` and `loadDataset` convert old
+     `YYYY-MM-DD` values by dropping the year. `availableShifts` matches on month-day within the
+     planning year. Validation: real month-day; `02-29` only counts in leap years.
+   - The UI lists dates as `12-25`. Update the seed, unit tests and the holiday e2e test.
 1. Ask the user:
    - Demand entry: yearly total per product with an optional monthly split (12 columns), or
      monthly only?
    - Demand units: units, crates or pallets?
-   - The two open questions in [open-questions.md](open-questions.md): holidays vs planning year,
-     and a fixed B/A network.
 2. Add `demand` to `Dataset` (per product per month), with editing on a new "Demand" page and
    validation. Old JSON files without `demand` get an empty default in `parseDataset`.
 3. Capacity check, before any solver: per product, demand vs the max output of its capable
