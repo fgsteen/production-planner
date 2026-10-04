@@ -65,5 +65,16 @@ See [open-questions.md](open-questions.md):
 
 ## Later sessions (rough order)
 - S06: plan visualisation (R30–R33, R37–R39): Sankey, utilisation heatmap, line clear time, stock
-  vs storage, trucks. About page v1 (R50).
+  vs storage, trucks.
+  - **About page (R50, `#about`).** Content is taken from
+    [ADR 0003](decisions/0003-planning-engine.md), condensed, not copied in full:
+    - the approach: a mixed-integer linear program (MILP), solved in the browser by HiGHS
+      (WebAssembly), as a variant of the capacitated lot-sizing problem (CLSP);
+    - the model as a bullet list: period, variables, constraints, objective, the two levels, and
+      how HiGHS solves it;
+    - "Why not machine learning" and "Why not an AI agent".
+    - Leave out the rest of the ADR: status, spike notes, consequences.
+    - Describe the model **as built at that point**: weeks, not months, plus whatever S05 adds.
+      Ideally take the numbers from the code (e.g. the variable and constraint counts for the
+      current dataset), so the page can't drift from the model.
 - S07: shift-level timeline (R34); compare plans (R25).

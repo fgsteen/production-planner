@@ -66,4 +66,4 @@ Terms: see the glossary in [domain.md](domain.md).
 ## About
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
-| R50 | About page explaining the optimisation: the solver (HiGHS), how it runs in the browser, the model (variables, constraints, objective) and methods used (e.g. LP relaxation, branch and bound). | M | agreed | S01 |
+| R50 | About page explaining the optimisation: the solver (HiGHS), how it runs in the browser, the model (variables, constraints, objective) and methods used (e.g. LP relaxation, branch and bound). Content from [ADR 0003](decisions/0003-planning-engine.md): MILP, HiGHS, CLSP; the model list (period, variables, constraints, objective, two levels, how HiGHS solves it); why not machine learning; why not an AI agent. Leave out the rest of the ADR (status, spike notes, consequences) (S04). | M | agreed | S01 |
