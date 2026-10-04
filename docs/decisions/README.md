@@ -33,4 +33,5 @@ What becomes easier/harder; follow-ups.
 | [0004](0004-weekly-demand-iso-weeks.md) | Weekly time grid (ISO weeks) and demand as a yearly total with pinned weeks | accepted |
 | [0005](0005-storage-pools-and-weekly-trucks.md) | Stock per storage pool, weekly truck limit, initial stock, demand by open days | accepted |
 | [0006](0006-product-characteristics-and-png-export.md) | Product characteristics as data (default X-Y-Z names); PNG export of panels | accepted |
-| [0007](0007-line-clear-milp-and-warm-start.md) | Line clears as a weekly MILP, weighted priorities, warm-started solve | accepted |
+| [0007](0007-line-clear-milp-and-warm-start.md) | Line clears as a weekly MILP, weighted priorities, warm-started solve | accepted (refined by 0008) |
+| [0008](0008-campaigns-across-weeks.md) | Campaigns across weeks (one large clear each), cycle-based warm start | accepted |

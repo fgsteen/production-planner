@@ -1,6 +1,6 @@
 # 0007 — Line clears as a weekly MILP, weighted priorities, warm-started solve
 
-- **Status:** accepted
+- **Status:** accepted; run cost and warm start refined by [0008](0008-campaigns-across-weeks.md)
 - **Date:** 2026-10-04 (S07)
 
 ## Context

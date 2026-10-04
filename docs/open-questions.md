@@ -15,16 +15,6 @@ Answered questions move into the relevant doc (vision, domain, requirements, ADR
   with a pre-SFG be allowed at A at all?
 - **Initial stock in the demo** (S07): the demo starts with no stock, so week 1 is a crunch. Should
   the demo start with, say, half a week of demand in stock at A?
-- **Unmet demand when demand exceeds capacity** (after S07): which demand should go unmet?
-  - **Now:** every unit costs the same, so whole slow products are dropped (at 2× demand, five
-    products get nothing).
-  - **Options:**
-    - a fair share: every product short by about the same percentage;
-    - a priority per product: keep the important ones whole;
-    - keep it as now: the most units delivered.
-  - **Also:** what should the bottleneck view show? For example, the value of one more shift per
-    machine, pallet of storage or truck per week (shadow prices), or a ranked "what limits the
-    plan" list (R39).
-- **Campaigns across weeks** (S07): a product that runs in two weeks in a row pays two large line
-  clears in the MILP. Is a weekly approximation fine, or does the line clear count need to be
-  exact?
+- **Bottleneck view** (after S07): what should it show when demand exceeds capacity? For example,
+  the value of one more shift per machine, pallet of storage or truck per week (shadow prices), or
+  a ranked "what limits the plan" list (R39). (Unmet demand itself: fair share, R64.)

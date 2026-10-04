@@ -38,8 +38,9 @@ Terms: see the glossary in [domain.md](domain.md).
 | R47 | **Pre-SFG products:** regular products (X-Y-Z) flagged pre-SFG, made at A or B. An SFG may use one pre-SFG, 1:1, consumed in the same week where the SFG is made (only B in the demo). Pre-SFGs have no demand of their own and share the B warehouse (S07, ADR 0007). | M | done | after S06 |
 | R48 | Truck lane A → B for pre-SFG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. Demo: 3 trucks × 30 pallets, weekdays (S07). | M | done | after S06 |
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. Weekly cap (S05, ADR 0005). | M | done | S01 |
-| R19 | Respect max campaign length. | M | agreed | S01 |
-| R28 | Line clear time reduces the producing time of the shift it occurs in. Weekly MILP: a large clear per run, a small one per further lot (S07, ADR 0007). | M | done | S01 |
+| R19 | Respect max campaign length. Expressible since S08 as a limit on consecutive weeks with `cont` (ADR 0008). | M | agreed | S01 |
+| R64 | **Unmet demand as a fair share:** when demand exceeds capacity, every product is short by about the same percentage, rather than whole slow products going unmet (user, S08). | M | agreed | S08 |
+| R28 | Line clear time reduces the producing time of the shift it occurs in. Weekly MILP: a large clear per campaign (consecutive weeks count as one, S08, ADR 0008), a small one per further lot (S07, ADR 0007). | M | done | S01 |
 | R21 | Generate a suggested plan distributing the forecast across capable machines, within shift capacity. MILP on the Plan page with storage, trucks, line clears and priorities (S04–S07). Open: the line clear weight barely moves the demo plan; campaigns across weeks. | M | building | S01 |
 | R22 | Choose priorities per plan run: changeover time, transport, load balance, spare capacity. Sliders 0–10 on the Plan page, saved in settings; default balance 8, line clears 4, transport 2, spare 1 (S07). | M | done | S01 |
 | R23 | Lots are at most one shift's output (configurable later). Lot count is continuous in the MILP (S07). | M | done | S01 |
@@ -50,7 +51,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
 | R30 | Load/utilisation per machine. | M | agreed | S01 |
-| R31 | Number of small/large line clears and total line clear time per machine. Columns in the shifts table (S07). | M | done | S01 |
+| R31 | Number of small/large line clears and total line clear time per machine. Columns in the shifts table (S07); line clear hours in the plan summary (S08). | M | done | S01 |
 | R32 | Transport volume B → A in units and pallets. | M | done | S01 |
 | R37 | Stock level (pallets) per storage location per month vs capacity. Detailed by R46 (per week, with product mix). | S | agreed | S01 |
 | R38 | Trucks needed B → A per week/month vs allowed truck capacity. | M | done | S01 |
