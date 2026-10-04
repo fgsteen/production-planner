@@ -15,8 +15,9 @@ const units = (n: number) => Math.round(n).toLocaleString('sv-SE').replace(/\s/g
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 export function DemandPage() {
-  const { dataset } = useDataset();
+  const { dataset, errors } = useDataset();
   const check = useMemo(() => checkCapacity(dataset), [dataset]);
+  const demandErrors = errors.filter((e) => e.startsWith('Demand'));
   return (
     <div className="space-y-6">
       <div>
@@ -26,6 +27,15 @@ export function DemandPage() {
           spreads over the other weeks. Clear a pinned week to unpin it.
         </p>
       </div>
+      {demandErrors.length > 0 && (
+        <div role="alert" data-testid="demand-problems" className="rounded-xl border border-[#edc948]/60 bg-[#edc948]/10 px-4 py-3 text-sm">
+          <ul className="list-disc pl-5 text-muted">
+            {demandErrors.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <Summary check={check} />
       <div className="grid gap-6 lg:grid-cols-2">
         <ProductCheckTable dataset={dataset} check={check} />

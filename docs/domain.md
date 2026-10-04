@@ -3,7 +3,7 @@
 Updated in S01. Items marked _(?)_ are unconfirmed — see [open-questions.md](open-questions.md).
 
 ```
-Site 1───* Machine 1───* Capability *───1 Product 1───* Demand (per month)
+Site 1───* Machine 1───* Capability *───1 Product 1───1 Demand (yearly + pinned weeks)
   │           │           (rate, OEE)        │
   │           └── Downtime (maintenance)     └── Packaging (units/crate, crates/pallet)
   └── Holidays
@@ -30,11 +30,11 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 ## Master data
 | Entity | Meaning | Fields |
 | --- | --- | --- |
-| **Site** | Geographical location (B, A). | name, is demand site, holidays (list of whole-day dates) |
+| **Site** | Geographical location (B, A). | name, is demand site, holidays (recurring `MM-DD` days) |
 | **StorageLocation** | Pallet storage at a site. | name, site, capacity (pallets), accepts (goods produced locally / goods arriving by truck) |
 | **TruckLane** | Transport B → A. | from, to, max trucks per week, size (pallets/truck, default 30), runs on weekends/holidays (toggle) |
-| **Settings** | Global planning settings. | planning year, max campaign length (shifts), shift length |
-| **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (list of whole-day dates) |
+| **Settings** | Global planning settings. | planning year (ISO week-year), max campaign length (shifts), shift length |
+| **Machine** | Self-contained machine at one site: raw material in → semi-finished good out. | name, site, shift calendar (default 3×8 h, 7 days/week), small line clear time, large line clear time, planned maintenance (recurring `MM-DD` days) |
 | **Product** | A semi-finished good. | name, units per crate, crates per pallet |
 | **Capability** | Machine *can produce* product. Many-to-many. Some products are possible at both sites, some at only one. | machine, product, rate (units/h), OEE (%) |
 
@@ -50,8 +50,12 @@ Line clear times don't depend on the product for now; they are set per machine.
 - Max lot size = one shift's output.
 
 ## Demand, storage and transport
-- Forecast per product per year. Optionally a **per-month requirement** per product: what A
-  consumes that month. Demand isn't spread evenly through the year.
+- **Demand** per product, in **units**: a yearly total, spread evenly over the ISO weeks of the
+  planning year. Chosen weeks can be **pinned** to a quantity; the rest of the total spreads over
+  the other weeks (S04, [ADR 0004](decisions/0004-weekly-demand-iso-weeks.md)). Demand is what A
+  consumes that week; it isn't even through the year.
+- **Time grid:** ISO 8601 weeks (as in Sweden). The planning year runs from Monday of week 1 to
+  Sunday of week 52/53.
 - Producing earlier is fine. The only limit on producing ahead is **storage space**.
 - Storage is counted in **pallets**, as a total across products (not per product), per storage location:
 
@@ -81,10 +85,10 @@ A machines ───────────────────────
   on a machine (personnel and quality).
 
 ## Planning
-- **Input:** demand per product per month, and the **priorities** chosen for this run:
+- **Input:** demand per product per week, and the **priorities** chosen for this run:
   least changeover time, least transport, balanced load, keep spare capacity.
 - **Output (plan):**
-  - lots per product per machine per month (→ quantity, shifts used, utilisation);
+  - lots per product per machine per week (→ quantity, shifts used, utilisation);
   - number of small/large line clears, and total line clear time per machine;
   - **transport:** units (and pallets) moved B → A;
   - stock level in pallets per storage location per month vs capacity;

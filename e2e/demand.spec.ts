@@ -35,6 +35,14 @@ test.describe('demand', () => {
     await expect(page.getByTestId('demand-summary')).toContainText('Products short1');
     await expect(page.getByTestId('load-A3')).toContainText(/1\d\d %/);
 
+    // Pinned weeks above the yearly total are reported here, not only on the master data page.
+    await page.getByLabel('P10 week 2', { exact: true }).fill('9000000');
+    await page.getByLabel('P10 week 2', { exact: true }).press('Enter');
+    await expect(page.getByTestId('demand-problems')).toContainText('Demand P10: weekly overrides (9000000) exceed the yearly total (8000000)');
+    await page.getByLabel('P10 week 2', { exact: true }).fill('');
+    await page.getByLabel('P10 week 2', { exact: true }).press('Enter');
+    await expect(page.getByTestId('demand-problems')).toHaveCount(0);
+
     // Survives a reload.
     await page.reload();
     await expect(page.getByLabel('P10 yearly demand')).toHaveValue('8 000 000');

@@ -14,7 +14,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R7 | Seed the app with generic demo data (sites B and A, a set of machines and products, overlapping capabilities). | M | done | S01 |
 | R6 | Packaging per product: units per crate, crates per pallet. | M | done | S01 |
 | R8 | Export/import the whole dataset as JSON (scenarios). | S | done | S01 |
-| R9 | Configurable holidays (per site) and planned maintenance (per machine), as lists of whole-day dates. They reduce available shifts. They **repeat every year** (month and day only; S03). | M | building | S01 |
+| R9 | Configurable holidays (per site) and planned maintenance (per machine), as lists of whole-day dates. They reduce available shifts. They **repeat every year** (month and day only; S03). | M | done | S01 |
 | R11 | Storage locations with capacity in total pallets: A in-factory (A-produced only), A warehouse (from B), B warehouse. | M | done | S01 |
 | R12 | Trucks B → A: max trucks per week, size in pallets (default 30), toggle for running on weekends/holidays. Default 5 trucks/week. | M | done | S01 |
 | R13 | Global max campaign length in shifts. | M | done | S01 |
@@ -29,8 +29,8 @@ Terms: see the glossary in [domain.md](domain.md).
 ## Planning
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
-| R20 | Input a yearly forecast: required quantity per product. | M | agreed | S01 |
-| R26 | Optional per-month requirement per product (demand is not even through the year; prevents oversized campaigns). | M | agreed | S01 |
+| R20 | Input a yearly forecast: required quantity per product, in units. | M | done | S01 |
+| R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread evenly — S04, ADR 0004). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
 | R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | agreed | S01 |
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. | M | agreed | S01 |
 | R19 | Respect max campaign length. | M | agreed | S01 |
@@ -52,7 +52,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R39 | Show which constraints are the bottleneck (e.g. A in-factory storage full, trucks maxed out, machine capacity), and what relaxing them would gain (solver shadow prices / what-if). | S | agreed | S01 |
 | R33 | Flow diagram (Sankey) with numbers: product → machine → site → A. | M | agreed | S01 |
 | R34 | Shift-level timeline of the plan per machine. | S | idea | S01 |
-| R35 | Flag forecast that cannot be fulfilled (insufficient capacity). | S | idea | S01 |
+| R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
 
 ## Hosting

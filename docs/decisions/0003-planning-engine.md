@@ -16,7 +16,7 @@ Model it as a **mixed-integer linear program (MILP)** and solve it in the browse
 This is a variant of the well-studied **capacitated lot-sizing problem (CLSP)** with parallel
 machines, setup times and inventory limits.
 
-- **Period:** month (12 periods/year).
+- **Period:** ISO week (52/53 per year) — changed from month in S04, see [ADR 0004](0004-weekly-demand-iso-weeks.md).
 - **Variables:**
   - lots of product *p* on machine *m* in month *t* (integer);
   - whether *p* runs on *m* in *t* (binary → drives large line clears);
