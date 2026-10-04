@@ -5,8 +5,8 @@ import type { Dataset, Id } from '../model/types';
 import { fmt, productColor } from '../ui/palette';
 import type { PlanResult } from './lp';
 import { productName } from '../model/products';
+import { Panel } from '../ui/Panel';
 
-const card = 'rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]';
 const one = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const fmt1 = (n: number) => one.format(n);
 
@@ -62,16 +62,12 @@ export function WeeklyMachinePlan({ dataset, plan, check }: { dataset: Dataset; 
   const used = new Set(plan.weekShifts.map((s) => s.productId));
 
   return (
-    <section className={card} data-testid="machine-week-plan">
-      <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold tracking-tight">Weekly machine plan</h3>
-          <p className="mt-0.5 text-xs text-muted">
-            Shifts per ISO week, coloured by product. The grey backdrop is the shifts available that week (holidays and maintenance removed).
-          </p>
-        </div>
-        <Toggle label="Weekly machine plan view" value={view} options={['Chart', 'Table'] as const} onChange={setView} />
-      </header>
+    <Panel
+      title="Weekly machine plan"
+      testId="machine-week-plan"
+      hint="Shifts per ISO week, coloured by product. The grey backdrop is the shifts available that week (holidays and maintenance removed)."
+      actions={<Toggle label="Weekly machine plan view" value={view} options={['Chart', 'Table'] as const} onChange={setView} />}
+    >
 
       {view === 'Chart' ? (
         <div className="space-y-1.5" data-testid="machine-week-chart">
@@ -123,7 +119,7 @@ export function WeeklyMachinePlan({ dataset, plan, check }: { dataset: Dataset; 
       ) : (
         <MachineWeekTable dataset={dataset} grid={grid} available={available(machineId)} machineId={machineId} onMachine={setMachineId} />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -220,21 +216,20 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
         const truckLimit = lane.weeks.reduce((a, w) => a + w.truckLimit, 0);
         const atLimit = lane.weeks.filter((w) => w.truckLimit > 0 && w.trucksUsed >= w.truckLimit).length;
         return (
-          <section key={lane.laneId} className={card} data-testid={`transport-${lane.laneId}`}>
-            <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="font-semibold tracking-tight">
-                  Transport {from} → {to}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted">
-                  Shipped per ISO week and product. Trucks = shipped pallets ÷ {lane.palletsPerTruck}, rounded up.{' '}
-                  {def.runsOnWeekendsAndHolidays
-                    ? 'This lane runs every day, so the limit is the same each week.'
-                    : 'Trucks run on weekdays only, so the limit drops in weeks with weekday holidays.'}
-                </p>
-              </div>
-              <Toggle label="Transport unit" value={unit} options={['Pallets', 'Units'] as const} onChange={setUnit} />
-            </header>
+          <Panel
+            key={lane.laneId}
+            title={`Transport ${from} → ${to}`}
+            testId={`transport-${lane.laneId}`}
+            hint={
+              <>
+                Shipped per ISO week and product. Trucks = shipped pallets ÷ {lane.palletsPerTruck}, rounded up.{' '}
+                {def.runsOnWeekendsAndHolidays
+                  ? 'This lane runs every day, so the limit is the same each week.'
+                  : 'Trucks run on weekdays only, so the limit drops in weeks with weekday holidays.'}
+              </>
+            }
+            actions={<Toggle label="Transport unit" value={unit} options={['Pallets', 'Units'] as const} onChange={setUnit} />}
+          >
             <dl className="mb-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4" data-testid="transport-summary">
               {(
                 [
@@ -302,7 +297,7 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
                 </tbody>
               </table>
             </div>
-          </section>
+          </Panel>
         );
       })}
     </>

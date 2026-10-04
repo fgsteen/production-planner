@@ -5,6 +5,7 @@ import { isoWeeksInYear, isoYearRange } from '../model/weeks';
 import { fmt, productColor, siteColor } from '../ui/palette';
 import { SiteMap } from './SiteMap';
 import { productName } from '../model/products';
+import { Panel } from '../ui/Panel';
 
 export function Overview({ dataset }: { dataset: Dataset }) {
   const [focus, setFocus] = useState<string | null>(null);
@@ -16,36 +17,25 @@ export function Overview({ dataset }: { dataset: Dataset }) {
     <div className="space-y-8">
       <Stats dataset={dataset} />
 
-      <Section title="Network" hint="Machines feed local storage. Trucks move B output to the A warehouse; A consumes from both A stores.">
+      <Panel heading="h2" title="Network" hint="Machines feed local storage. Trucks move B output to the A warehouse; A consumes from both A stores.">
         <SiteMap dataset={dataset} productColors={productColors} />
-      </Section>
+      </Panel>
 
-      <Section title="Machines by site" hint={`Effective rate = rate × OEE. Available shifts in ${year} (ISO weeks 1–${isoWeeksInYear(year)}) after holidays and maintenance.`}>
+      <Panel heading="h2" title="Machines by site" hint={`Effective rate = rate × OEE. Available shifts in ${year} (ISO weeks 1–${isoWeeksInYear(year)}) after holidays and maintenance.`}>
         <div className="grid gap-6 lg:grid-cols-2">
           {dataset.sites.map((site) => (
             <SitePanel key={site.id} site={site} dataset={dataset} productColors={productColors} maxRate={maxRate} focus={focus} year={year} />
           ))}
         </div>
-      </Section>
+      </Panel>
 
-      <Section title="Products" hint="Hover a product to highlight the machines that can make it.">
+      <Panel heading="h2" title="Products" hint="Hover a product to highlight the machines that can make it.">
         <ProductTable dataset={dataset} productColors={productColors} focus={focus} setFocus={setFocus} />
-      </Section>
+      </Panel>
     </div>
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      <header className="mb-4">
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
-      </header>
-      {children}
-    </section>
-  );
-}
 
 function Stats({ dataset }: { dataset: Dataset }) {
   const lane = dataset.truckLanes[0];

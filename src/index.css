@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 
-/* Design tokens. Light by default, dark via prefers-color-scheme. */
-:root {
+/* Design tokens. Light by default, dark via prefers-color-scheme. `.light-theme` forces light on a
+   subtree (PNG export, R45): it sets the light values on that element, which its children inherit. */
+:root,
+.light-theme {
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-2: #f1f3f6;
@@ -31,6 +33,16 @@
     --edge: #4a5262;
     color-scheme: dark;
   }
+}
+
+/* While a panel is rendered to PNG: show scroll areas whole. */
+.png-export :is(.overflow-auto, .overflow-x-auto, .overflow-y-auto) {
+  overflow: visible !important;
+  max-height: none !important;
+}
+.png-export {
+  width: max-content;
+  color: var(--text);
 }
 
 @theme inline {

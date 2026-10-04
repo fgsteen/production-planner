@@ -6,6 +6,7 @@ import { useDataset } from '../store/DatasetContext';
 import { OptionalNumberCell } from '../ui/cells';
 import { fmt, productColor } from '../ui/palette';
 import { productName } from '../model/products';
+import { Panel } from '../ui/Panel';
 
 const RED = '#e15759';
 const AMBER = '#edc948';
@@ -47,17 +48,6 @@ export function DemandPage() {
   );
 }
 
-function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      <header className="mb-3">
-        <h3 className="font-semibold tracking-tight">{title}</h3>
-        {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
-      </header>
-      {children}
-    </section>
-  );
-}
 
 function Summary({ check }: { check: CapacityCheck }) {
   const short = check.products.filter((p) => p.shortfall > 0.5);
@@ -90,7 +80,7 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
   const checkOf = new Map(check.products.map((p) => [p.productId, p]));
 
   return (
-    <Card title="Weekly demand" hint="Bold = pinned week. Red = more than the product's machines can make that week (needs stock built earlier).">
+    <Panel title="Weekly demand" hint="Bold = pinned week. Red = more than the product's machines can make that week (needs stock built earlier).">
       <div className="max-h-[75vh] overflow-auto">
         <table className="w-full border-separate border-spacing-0 text-xs">
           <thead className="sticky top-0 z-10 bg-surface">
@@ -163,13 +153,13 @@ function WeeklyTable({ dataset, check }: { dataset: Dataset; check: CapacityChec
           </tbody>
         </table>
       </div>
-    </Card>
+    </Panel>
   );
 }
 
 function ProductCheckTable({ dataset, check }: { dataset: Dataset; check: CapacityCheck }) {
   return (
-    <Card title="Capacity check: products" hint="Max = all capable machines making only this product. A shortfall means the demand can't be met even building stock from week 1.">
+    <Panel title="Capacity check: products" hint="Max = all capable machines making only this product. A shortfall means the demand can't be met even building stock from week 1.">
       <table className="w-full text-xs" data-testid="product-check">
         <thead>
           <tr className="border-b border-line text-left text-muted">
@@ -208,13 +198,13 @@ function ProductCheckTable({ dataset, check }: { dataset: Dataset; check: Capaci
           })}
         </tbody>
       </table>
-    </Card>
+    </Panel>
   );
 }
 
 function MachineLoadTable({ check }: { check: CapacityCheck }) {
   return (
-    <Card title="Estimated machine load" hint="Each product's weekly demand split over its machines in proportion to their output. No line clears yet, so real load will be higher.">
+    <Panel title="Estimated machine load" hint="Each product's weekly demand split over its machines in proportion to their output. No line clears yet, so real load will be higher.">
       <ul className="space-y-1.5 text-xs" data-testid="machine-load">
         {check.machines.map((m) => {
           const pct = m.loadPct;
@@ -232,6 +222,6 @@ function MachineLoadTable({ check }: { check: CapacityCheck }) {
           );
         })}
       </ul>
-    </Card>
+    </Panel>
   );
 }

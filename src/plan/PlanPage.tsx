@@ -7,6 +7,7 @@ import type { PlanResult } from './lp';
 import { TransportBreakdown, WeeklyMachinePlan } from './PlanDetails';
 import type { WorkerRequest, WorkerResponse } from './plan.worker';
 import { productName } from '../model/products';
+import { Panel } from '../ui/Panel';
 
 type State = { kind: 'solving' } | { kind: 'done'; plan: PlanResult } | { kind: 'error'; error: string };
 
@@ -96,11 +97,7 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
         ))}
       </dl>
 
-      <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <header className="mb-3">
-          <h3 className="font-semibold tracking-tight">Shifts per machine and product</h3>
-          <p className="mt-0.5 text-xs text-muted">Shifts over the year. Utilisation = planned ÷ available shifts. Grey cells: the machine can't make that product.</p>
-        </header>
+      <Panel title="Shifts per machine and product" hint="Shifts over the year. Utilisation = planned ÷ available shifts. Grey cells: the machine can't make that product.">
         <div className="overflow-x-auto">
           <table className="w-full text-xs" data-testid="plan-table">
             <thead>
@@ -154,7 +151,7 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
 
       <WeeklyMachinePlan dataset={dataset} plan={plan} check={check} />
       <TransportBreakdown dataset={dataset} plan={plan} />
