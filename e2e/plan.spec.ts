@@ -33,6 +33,12 @@ test('shows the weekly machine plan and the B → A transport breakdown', async 
   await page.goto('/#plan');
   await expect(page.getByTestId('plan-summary')).toContainText('Gap to optimum', { timeout: 30_000 });
 
+  // R65: line clears per machine, with a total row and a 52-week strip of campaign starts.
+  const clears = page.getByTestId('line-clear-panel');
+  await expect(clears.getByTestId('line-clear-A1')).toContainText('Machine A1');
+  await expect(clears.getByTestId('line-clear-B2').locator('span[title^="Week "]')).toHaveCount(52);
+  await expect(clears.getByTestId('line-clear-total')).toContainText('Total');
+
   // R42: one row per machine; the table view lists the weeks of the chosen machine.
   const weekly = page.getByTestId('machine-week-plan');
   await expect(weekly.getByTestId('machine-week-A1')).toContainText('% used');

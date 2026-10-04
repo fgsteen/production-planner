@@ -12,6 +12,7 @@ import type { SolveStage } from './solve';
 import { Panel } from '../ui/Panel';
 import { GroupBySelect } from '../ui/GroupBy';
 import { BottlenecksPanel } from './Bottlenecks';
+import { LineClearPanel } from './LineClears';
 import { UnmetPanel } from './Unmet';
 import { WarehousePanel } from './Warehouse';
 
@@ -305,6 +306,7 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
         </div>
       </Panel>
 
+      <LineClearPanel dataset={dataset} plan={plan} check={check} />
       <WeeklyMachinePlan dataset={dataset} plan={plan} check={check} />
       <WarehousePanel dataset={dataset} plan={plan} />
       <TransportBreakdown dataset={dataset} plan={plan} />
