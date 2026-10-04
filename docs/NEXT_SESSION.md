@@ -28,7 +28,15 @@ _Written at the end of S06 (2026-10-04)._
 **Line clears and priorities.** Make the plan a MILP with line clears, and add priority weights with
 a small control panel. This covers R28, R23, R22 and R31, and moves R21 towards done.
 
-**Ask first: line clears, or grouping (R44)?**
+**Ask first: line clears, grouping (R44), or the new requests after S06?**
+- New requests from the user (recorded after S06, not built yet):
+  - a **warehouse panel** on the Plan page (R46);
+  - **pre-SMG products** consumed at B (R47), with an **A → B truck lane** (R48).
+- R47/R48 change the data model and the LP core (a bill of materials and a second lane). As with the
+  characteristics, consider doing them **before line clears**, so the MILP is built and tuned on the
+  final model. Their open questions must be answered first.
+- R46 is small: `PlanResult.storage` already has pallets per pool per week. It needs units per
+  product per location. It could ride along with any session.
 - With 20 products the demand grid and plan tables scroll sideways on narrow screens.
 - If that bothers the user more, do R44 first. Ask the grouping UX question in
   [open-questions.md](open-questions.md).
@@ -50,6 +58,7 @@ a small control panel. This covers R28, R23, R22 and R31, and moves R21 towards 
 
 ### Questions for the user
 See [open-questions.md](open-questions.md):
+- pre-SMG details and the A → B lane (needed before R47/R48);
 - default priorities;
 - grouping UX;
 - transit time;
@@ -58,6 +67,14 @@ See [open-questions.md](open-questions.md):
 - Excel dropdowns.
 
 ## Later sessions (rough order, to be confirmed with the user)
+- **Pre-SMG products and the A → B lane (R47, R48):**
+  - pre-SMG products;
+  - bill-of-materials consumption at B;
+  - an inbound store at B;
+  - a second lane in the LP and in the transport breakdown;
+  - the Overview map shows the A → B edge.
+- **Warehouse panel (R46):** per storage location, weekly stacked pallets by product vs capacity,
+  with a table toggle.
 - **Grouping (R44):**
   - group, filter or expand by X/Y/Z in the demand grid and the plan views;
   - `productName` and `Dataset.characteristics` are the building blocks.

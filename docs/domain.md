@@ -24,6 +24,7 @@ Site B ──transport──▶ Site A (next process step; all demand lands here
 ## Sites
 - **The network is fixed** (user decision, S03): exactly two sites, B and A, and one truck lane
   B → A. Their properties are editable; sites and lanes can't be added or removed.
+  *Planned (after S06, R48):* a second lane **A → B** for pre-SMG products.
 - **Site B:** produces semi-finished goods only. Everything made at B is transported to A.
 - **Site A:** produces them too and hosts the next process step. Demand is consumed here.
 
@@ -93,6 +94,14 @@ limit is the bottleneck (R39).
 B machines → B warehouse ──truck (≤ freq/week × 30 pallets)──▶ A warehouse  ─┐
 A machines ─────────────────────────────────────────────────▶ A in-factory ─┴→ consumption at A
 ```
+
+**Pre-SMG products** (user, after S06; not built yet; R47, R48):
+- a few products are inputs to SMGs: they are made on the same machine types, at A or B;
+- they are **consumed at B** to make SMGs that are already in the mix. Their demand at B follows
+  B's production of those SMGs;
+- those made at A travel **A → B** on a separate truck lane with its own limits;
+- quantities are much smaller than the SMGs'.
+- Open: the ratio per SMG, storage at B, timing, and the demo data (see open-questions.md).
 
 ## Campaigns
 - **Max campaign length:** one **global** limit, in **shifts**: max consecutive shifts of one product

@@ -22,3 +22,14 @@ Answered questions move into the relevant doc (vision, domain, requirements, ADR
   Possibly a mix, per view.
 - **Excel and characteristics** (after S05): which dropdowns matter most in the template? Is it
   fine if a product is picked by its `X-Y-Z` name?
+- **Pre-SMG products** (after S06, R47): needed before building them.
+  - Which SMGs consume which pre-SMG, and how much: units of pre-SMG per unit of SMG? Can one SMG
+    use more than one pre-SMG?
+  - Is there any other demand for pre-SMGs (e.g. at A), or only what B consumes?
+  - Timing: must the pre-SMG be at B in the week before the SMG is made, or is the same week fine?
+  - Storage at B: do trucked-in pre-SMGs go into the B warehouse (shared pallet capacity), or into a
+    separate store?
+  - Are pre-SMGs regular products with X-Y-Z characteristics, or a separate list?
+  - Demo data: how many pre-SMGs (e.g. 2–3), and at what volume relative to the SMGs?
+- **Truck lane A → B** (after S06, R48): default trucks per week and pallets per truck? Does it run
+  on weekends and holidays?

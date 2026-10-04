@@ -35,6 +35,8 @@ Terms: see the glossary in [domain.md](domain.md).
 | R20 | Input a yearly forecast: required quantity per product, in units. | M | done | S01 |
 | R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread by A's open days — S04/S05, ADR 0004/0005). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
 | R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | done | S01 |
+| R47 | **Pre-SMG products:** a few products, made on the same machine types at A or B, are inputs consumed at B to make SMGs already in the mix. Their demand at B follows B's production of those SMGs (a bill of materials). Small quantities compared with the SMGs. Details are open questions. | M | agreed | after S06 |
+| R48 | Truck lane A → B for pre-SMG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. | M | agreed | after S06 |
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. Weekly cap (S05, ADR 0005). | M | done | S01 |
 | R19 | Respect max campaign length. | M | agreed | S01 |
 | R28 | Line clear time reduces the producing time of the shift it occurs in. | M | agreed | S01 |
@@ -50,7 +52,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R30 | Load/utilisation per machine. | M | agreed | S01 |
 | R31 | Number of small/large line clears and total line clear time per machine. | M | agreed | S01 |
 | R32 | Transport volume B → A in units and pallets. | M | done | S01 |
-| R37 | Stock level (pallets) per storage location per month vs capacity. | S | agreed | S01 |
+| R37 | Stock level (pallets) per storage location per month vs capacity. Detailed by R46 (per week, with product mix). | S | agreed | S01 |
 | R38 | Trucks needed B → A per week/month vs allowed truck capacity. | M | done | S01 |
 | R39 | Show which constraints are the bottleneck (e.g. A in-factory storage full, trucks maxed out, machine capacity), and what relaxing them would gain (solver shadow prices / what-if). | S | agreed | S01 |
 | R33 | Flow diagram (Sankey) with numbers: product → machine → site → A. | M | agreed | S01 |
@@ -60,6 +62,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
 | R44 | Scale to 20–50 products: tables and charts (demand grid, plan tables, weekly views) stay usable without wide sideways scrolling. Group or filter by characteristic X/Y/Z, or expand and collapse groups. | M | agreed | S05 |
+| R46 | Warehouse panel on the Plan page: one section per storage location, showing per ISO week the stock in pallets by product (the product mix) against its capacity. Stacked bars per week with a capacity line, and a toggle to a week × product table, like the weekly machine plan (R42). | M | agreed | after S06 |
 | R45 | Every panel with a chart or table has a small icon to download it as a PNG for presentations (2× resolution, light theme). Wide tables export whole; panel controls are left out. | M | done | S05 |
 
 ## Excel

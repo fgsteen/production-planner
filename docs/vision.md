@@ -16,6 +16,9 @@ machine load, changeover time and transport between sites.
 - **Site B** only produces semi-finished goods. **Site A** produces them too and hosts the next
   process step, so all demand lands at A and everything made at B is **transported B → A**.
 - Some products can be made at both sites, some only at one.
+- **Pre-SMG products** (after S06): a few products, made on the same machine types, are inputs
+  consumed at **B** to make SMGs already in the mix. Those made at A are trucked **A → B** on their
+  own lane. The quantities are much smaller than the SMGs' (R47, R48).
 - Demand is a **yearly forecast** of required quantity **per product**.
 - In reality there are **20–50 products** (after S05). Each product is a combination of three
   **characteristics** (X, Y, Z); not every combination exists. Tables and charts must stay usable
