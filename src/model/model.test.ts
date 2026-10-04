@@ -59,22 +59,24 @@ describe('validateDataset', () => {
 
   it('flags invalid dates, line clears and demand sites', () => {
     const ds = clone();
-    ds.sites[0].holidays.push('2027-02-30');
+    ds.sites[0].holidays.push('02-30');
     ds.machines[1].smallLineClearMin = 500;
     ds.sites[0].isDemandSite = true;
     const errors = validateDataset(ds);
-    expect(errors).toContain('Site B: invalid holiday date "2027-02-30"');
+    expect(errors).toContain('Site B: invalid holiday "02-30" (expected MM-DD)');
     expect(errors.some((e) => e.startsWith('Machine B2: small line clear must be'))).toBe(true);
     expect(errors).toContain('Exactly one site must be the demand site');
   });
 
   it('reports (does not throw on) dates the Date parser rejects', () => {
     const ds = clone();
-    ds.sites[0].holidays.push('2027-13-01');
-    ds.machines[0].maintenance.push('2027-00-10');
+    ds.sites[0].holidays.push('13-01', '2027-01-01');
+    ds.machines[0].maintenance.push('00-10', '02-29');
     const errors = validateDataset(ds);
-    expect(errors).toContain('Site B: invalid holiday date "2027-13-01"');
-    expect(errors).toContain('Machine B1: invalid maintenance date "2027-00-10"');
+    expect(errors).toContain('Site B: invalid holiday "13-01" (expected MM-DD)');
+    expect(errors).toContain('Site B: invalid holiday "2027-01-01" (expected MM-DD)');
+    expect(errors).toContain('Machine B1: invalid maintenance day "00-10" (expected MM-DD)');
+    expect(errors.some((e) => e.includes('"02-29"'))).toBe(false); // valid; counts in leap years only
   });
 });
 
@@ -104,10 +106,19 @@ describe('capacity', () => {
   });
 
   it('removes holidays, maintenance and non-working days from available shifts', () => {
-    const site = { id: 'B', name: 'B', isDemandSite: false, holidays: ['2027-01-01'] };
-    const m = { ...machine, maintenance: ['2027-01-05'], calendar: { shiftsPerDay: 3, workingWeekdays: [1, 2, 3, 4, 5] } };
+    const site = { id: 'B', name: 'B', isDemandSite: false, holidays: ['01-01'] };
+    const m = { ...machine, maintenance: ['01-05'], calendar: { shiftsPerDay: 3, workingWeekdays: [1, 2, 3, 4, 5] } };
     // 2027-01-01 (Fri) … 2027-01-07 (Thu): weekdays Fri, Mon–Thu = 5; minus holiday Fri and maintenance Tue = 3 days.
     expect(availableShifts(m, site, '2027-01-01', '2027-01-07')).toBe(9);
     expect(availableShifts(machine, { ...site, holidays: [] }, '2027-01-01', '2027-12-31')).toBe((365 - 2) * 3);
+  });
+
+  it('repeats holidays and maintenance every year; 02-29 only in leap years', () => {
+    const site = { id: 'B', name: 'B', isDemandSite: false, holidays: ['12-25', '02-29'] };
+    const m = { ...machine, maintenance: [] };
+    expect(availableShifts(m, site, '2027-12-20', '2028-01-02')).toBe((14 - 1) * 3);
+    expect(availableShifts(m, site, '2028-12-20', '2029-01-02')).toBe((14 - 1) * 3);
+    expect(availableShifts(m, site, '2027-02-27', '2027-03-01')).toBe(3 * 3);
+    expect(availableShifts(m, site, '2028-02-27', '2028-03-01')).toBe(3 * 3); // 4 days, 02-29 off
   });
 });

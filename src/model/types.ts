@@ -3,13 +3,15 @@
 export type Id = string;
 /** Whole-day date as `YYYY-MM-DD`. */
 export type IsoDate = string;
+/** Recurring day of the year as `MM-DD` (holidays and maintenance repeat every year). */
+export type MonthDay = string;
 
 export interface Site {
   id: Id;
   name: string;
   /** Demand is consumed here (site A). */
   isDemandSite: boolean;
-  holidays: IsoDate[];
+  holidays: MonthDay[];
 }
 
 /** `local`: goods produced at this site. `inbound`: goods arriving by truck. */
@@ -47,7 +49,7 @@ export interface Machine {
   smallLineClearMin: number;
   /** Changeover to a different product, in minutes. */
   largeLineClearMin: number;
-  maintenance: IsoDate[];
+  maintenance: MonthDay[];
 }
 
 export interface Product {
@@ -66,8 +68,19 @@ export interface Capability {
   oeePct: number;
 }
 
+/**
+ * Forecast for one product over the planning year, in units. By default the yearly total is spread
+ * evenly over the ISO weeks; `weekOverrides` (week number → units) pins chosen weeks, and the rest
+ * of the total is spread evenly over the other weeks.
+ */
+export interface Demand {
+  productId: Id;
+  yearlyUnits: number;
+  weekOverrides: Record<string, number>;
+}
+
 export interface Settings {
-  /** Calendar year being planned (Jan 1 – Dec 31). */
+  /** ISO week-year being planned: Monday of week 1 to Sunday of week 52/53. */
   planningYear: number;
   shiftHours: number;
   /** Max consecutive shifts of one product on a machine. */
@@ -83,4 +96,5 @@ export interface Dataset {
   machines: Machine[];
   products: Product[];
   capabilities: Capability[];
+  demand: Demand[];
 }

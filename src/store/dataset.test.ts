@@ -81,6 +81,29 @@ describe('datasetReducer: sites, storage, trucks, settings', () => {
   });
 });
 
+describe('datasetReducer: demand', () => {
+  const demandOf = (ds: typeof seedDataset, id: string) => ds.demand.find((d) => d.productId === id);
+
+  it('sets totals and week overrides, creating demand for products without any', () => {
+    let ds = datasetReducer({ ...seedDataset, demand: [] }, { type: 'setDemandTotal', productId: 'P02', yearlyUnits: 5200 });
+    ds = datasetReducer(ds, { type: 'setDemandWeek', productId: 'P02', week: 7, units: 300 });
+    ds = datasetReducer(ds, { type: 'setDemandWeek', productId: 'P03', week: 1, units: 0 });
+    expect(demandOf(ds, 'P02')).toEqual({ productId: 'P02', yearlyUnits: 5200, weekOverrides: { 7: 300 } });
+    expect(demandOf(ds, 'P03')).toEqual({ productId: 'P03', yearlyUnits: 0, weekOverrides: { 1: 0 } });
+  });
+
+  it('removes one override or all of them', () => {
+    let ds = datasetReducer(seedDataset, { type: 'setDemandWeek', productId: 'P07', week: 22, units: null });
+    expect(Object.keys(demandOf(ds, 'P07')!.weekOverrides)).not.toContain('22');
+    ds = datasetReducer(ds, { type: 'clearDemandOverrides', productId: 'P07' });
+    expect(demandOf(ds, 'P07')!.weekOverrides).toEqual({});
+  });
+
+  it('removing a product removes its demand', () => {
+    expect(demandOf(datasetReducer(seedDataset, { type: 'removeProduct', id: 'P01' }), 'P01')).toBeUndefined();
+  });
+});
+
 describe('nextId', () => {
   it('fills the first gap', () => {
     expect(nextId('P', ['P01', 'P03'])).toBe('P02');
@@ -98,6 +121,21 @@ describe('JSON round trip', () => {
     const { planningYear: _omit, ...oldSettings } = seedDataset.settings;
     const parsed = parseDataset(JSON.stringify({ ...seedDataset, settings: { ...oldSettings, shiftHours: 6 } }));
     expect(parsed.ok && parsed.dataset.settings).toEqual({ planningYear: 2027, shiftHours: 6, maxCampaignShifts: 21 });
+  });
+
+  it('upgrades pre-S04 files: no demand, holidays and maintenance as full dates', () => {
+    const { demand: _omit, ...old } = seedDataset;
+    const file = {
+      ...old,
+      sites: old.sites.map((s) => ({ ...s, holidays: ['2027-12-25', '2028-12-25', '2027-01-01'] })),
+      machines: old.machines.map((m) => ({ ...m, maintenance: ['2027-02-15'] })),
+    };
+    const parsed = parseDataset(JSON.stringify(file));
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.dataset.demand).toEqual([]);
+    expect(parsed.dataset.sites[0].holidays).toEqual(['12-25', '01-01']);
+    expect(parsed.dataset.machines[0].maintenance).toEqual(['02-15']);
+    expect(validateDataset(parsed.dataset)).toEqual([]);
   });
 
   it.each([

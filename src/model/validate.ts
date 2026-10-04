@@ -1,11 +1,13 @@
 import type { Dataset } from './types';
+import { isoWeeksInYear } from './weeks';
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_DAY = /^\d{2}-\d{2}$/;
 
-function isIsoDate(s: string): boolean {
-  if (!ISO_DATE.test(s)) return false;
-  const t = Date.parse(`${s}T00:00:00Z`); // NaN for e.g. month 13; toISOString() would throw
-  return !Number.isNaN(t) && new Date(t).toISOString().startsWith(s);
+/** A real `MM-DD`; `02-29` is allowed (it only takes effect in leap years). */
+function isMonthDay(s: string): boolean {
+  if (!MONTH_DAY.test(s)) return false;
+  const t = Date.parse(`2000-${s}T00:00:00Z`); // NaN for e.g. month 13; toISOString() would throw
+  return !Number.isNaN(t) && new Date(t).toISOString().startsWith(`2000-${s}`);
 }
 
 /** Returns a list of human-readable problems; empty means the dataset is consistent. */
@@ -35,7 +37,7 @@ export function validateDataset(ds: Dataset): string[] {
 
   if (ds.sites.filter((s) => s.isDemandSite).length !== 1) err('Exactly one site must be the demand site');
   for (const s of ds.sites) {
-    for (const d of s.holidays) if (!isIsoDate(d)) err(`Site ${s.id}: invalid holiday date "${d}"`);
+    for (const d of s.holidays) if (!isMonthDay(d)) err(`Site ${s.id}: invalid holiday "${d}" (expected MM-DD)`);
   }
 
   for (const m of ds.machines) {
@@ -48,7 +50,7 @@ export function validateDataset(ds: Dataset): string[] {
       if (!(min >= 0 && min < ds.settings.shiftHours * 60)) err(`Machine ${m.id}: ${label} line clear must be ≥ 0 and shorter than a shift`);
     }
     if (m.smallLineClearMin > m.largeLineClearMin) err(`Machine ${m.id}: small line clear is longer than large`);
-    for (const d of m.maintenance) if (!isIsoDate(d)) err(`Machine ${m.id}: invalid maintenance date "${d}"`);
+    for (const d of m.maintenance) if (!isMonthDay(d)) err(`Machine ${m.id}: invalid maintenance day "${d}" (expected MM-DD)`);
   }
 
   for (const p of ds.products) {
@@ -80,6 +82,25 @@ export function validateDataset(ds: Dataset): string[] {
     if (t.fromSiteId === t.toSiteId) err(`Truck lane ${t.id}: from and to are the same site`);
     if (!(t.maxTrucksPerWeek >= 0)) err(`Truck lane ${t.id}: trucks per week must be ≥ 0`);
     if (!(t.palletsPerTruck > 0)) err(`Truck lane ${t.id}: pallets per truck must be > 0`);
+  }
+
+  const weeks = isoWeeksInYear(ds.settings.planningYear);
+  const demanded = new Set<string>();
+  for (const d of ds.demand) {
+    if (demanded.has(d.productId)) err(`Duplicate demand for product ${d.productId}`);
+    demanded.add(d.productId);
+    if (!productIds.has(d.productId)) err(`Demand: unknown product "${d.productId}"`);
+    if (!(d.yearlyUnits >= 0)) err(`Demand ${d.productId}: yearly total must be ≥ 0`);
+    const entries = Object.entries(d.weekOverrides);
+    for (const [week, units] of entries) {
+      const w = Number(week);
+      if (!(Number.isInteger(w) && w >= 1 && w <= weeks)) err(`Demand ${d.productId}: week ${week} is not in ${ds.settings.planningYear} (1–${weeks})`);
+      if (!(units >= 0)) err(`Demand ${d.productId}: week ${week} must be ≥ 0`);
+    }
+    const pinned = entries.reduce((sum, [, u]) => sum + u, 0);
+    if (pinned > d.yearlyUnits + 1e-6) err(`Demand ${d.productId}: weekly overrides (${pinned}) exceed the yearly total (${d.yearlyUnits})`);
+    else if (entries.length >= weeks && Math.abs(pinned - d.yearlyUnits) > 1e-6)
+      err(`Demand ${d.productId}: all weeks are set but sum to ${pinned}, not the yearly total ${d.yearlyUnits}`);
   }
 
   return errors;

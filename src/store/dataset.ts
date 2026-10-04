@@ -1,6 +1,6 @@
 // Dataset store: a pure reducer plus JSON (de)serialisation. React wiring lives in DatasetContext.tsx.
 import { seedDataset } from '../model/seed';
-import type { Capability, Dataset, Id, Machine, Product, Settings, Site, StorageLocation, TruckLane } from '../model/types';
+import type { Capability, Dataset, Demand, Id, Machine, Product, Settings, Site, StorageLocation, TruckLane } from '../model/types';
 
 export type DatasetAction =
   | { type: 'replace'; dataset: Dataset }
@@ -19,7 +19,11 @@ export type DatasetAction =
   | { type: 'removeProduct'; id: Id }
   | { type: 'updateCapability'; machineId: Id; productId: Id; patch: Partial<Capability> }
   | { type: 'addCapability'; machineId: Id; productId: Id }
-  | { type: 'removeCapability'; machineId: Id; productId: Id };
+  | { type: 'removeCapability'; machineId: Id; productId: Id }
+  | { type: 'setDemandTotal'; productId: Id; yearlyUnits: number }
+  /** `units: null` removes the override, so the week goes back to the even spread. */
+  | { type: 'setDemandWeek'; productId: Id; week: number; units: number | null }
+  | { type: 'clearDemandOverrides'; productId: Id };
 
 /** Next free id of the form `<prefix><n>`, zero-padded to `width`. */
 export function nextId(prefix: string, taken: Iterable<Id>, width = 2): Id {
@@ -33,6 +37,12 @@ export function nextId(prefix: string, taken: Iterable<Id>, width = 2): Id {
 /** Applies `patch` to the item with `id`. */
 function patchById<T extends { id: Id }>(items: T[], id: Id, patch: NoInfer<Partial<Omit<T, 'id'>>>): T[] {
   return items.map((x) => (x.id === id ? { ...x, ...patch } : x));
+}
+
+/** Applies `fn` to the product's demand, creating an empty one if needed. */
+function patchDemand(ds: Dataset, productId: Id, fn: (d: Demand) => Demand): Dataset {
+  const current = ds.demand.find((d) => d.productId === productId) ?? { productId, yearlyUnits: 0, weekOverrides: {} };
+  return { ...ds, demand: [...ds.demand.filter((d) => d.productId !== productId), fn(current)] };
 }
 
 const isCap = (machineId: Id, productId: Id) => (c: Capability) => c.machineId === machineId && c.productId === productId;
@@ -97,6 +107,7 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
         ...ds,
         products: ds.products.filter((p) => p.id !== action.id),
         capabilities: ds.capabilities.filter((c) => c.productId !== action.id),
+        demand: ds.demand.filter((d) => d.productId !== action.id),
       };
 
     case 'updateCapability': {
@@ -111,6 +122,16 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
       };
     case 'removeCapability':
       return { ...ds, capabilities: ds.capabilities.filter((c) => !isCap(action.machineId, action.productId)(c)) };
+
+    case 'setDemandTotal':
+      return patchDemand(ds, action.productId, (d) => ({ ...d, yearlyUnits: action.yearlyUnits }));
+    case 'setDemandWeek':
+      return patchDemand(ds, action.productId, (d) => {
+        const { [action.week]: _, ...rest } = d.weekOverrides;
+        return { ...d, weekOverrides: action.units === null ? rest : { ...rest, [action.week]: action.units } };
+      });
+    case 'clearDemandOverrides':
+      return patchDemand(ds, action.productId, (d) => ({ ...d, weekOverrides: {} }));
   }
 }
 
@@ -121,6 +142,12 @@ export function exportJson(ds: Dataset): string {
 }
 
 const COLLECTIONS = ['sites', 'storageLocations', 'truckLanes', 'machines', 'products', 'capabilities'] as const;
+
+/** `YYYY-MM-DD` → `MM-DD` (dropping duplicates); anything else is kept for validation to report. */
+function toMonthDays(days: string[] | undefined): string[] {
+  const out = (days ?? []).map((d) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : d));
+  return [...new Set(out)];
+}
 
 export type ParseResult = { ok: true; dataset: Dataset } | { ok: false; error: string };
 
@@ -142,8 +169,17 @@ export function parseDataset(text: string): ParseResult {
   for (const key of COLLECTIONS) {
     if (!Array.isArray(obj[key])) return { ok: false, error: `Missing or invalid "${key}" list` };
   }
-  // Settings added after v1 shipped (e.g. planningYear) fall back to the demo defaults.
-  const dataset = { ...(raw as Dataset), settings: { ...seedDataset.settings, ...(obj.settings as Partial<Settings>) } };
+  if (obj.demand !== undefined && !Array.isArray(obj.demand)) return { ok: false, error: 'Invalid "demand" list' };
+  const ds = raw as Dataset;
+  const dataset: Dataset = {
+    ...ds,
+    // Settings added after v1 shipped (e.g. planningYear) fall back to the demo defaults.
+    settings: { ...seedDataset.settings, ...(obj.settings as Partial<Settings>) },
+    // Files from before S04: no demand, and holidays/maintenance as full dates.
+    demand: (ds.demand ?? []).map((d) => ({ ...d, weekOverrides: d.weekOverrides ?? {} })),
+    sites: ds.sites.map((s) => ({ ...s, holidays: toMonthDays(s.holidays) })),
+    machines: ds.machines.map((m) => ({ ...m, maintenance: toMonthDays(m.maintenance) })),
+  };
   return { ok: true, dataset };
 }
 

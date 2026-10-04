@@ -34,9 +34,9 @@ export function eachDay(from: IsoDate, to: IsoDate): IsoDate[] {
   return days;
 }
 
-/** Available shifts = calendar shifts − site holidays − machine maintenance, over [from, to]. */
+/** Available shifts = calendar shifts − site holidays − machine maintenance, over [from, to]. Off days recur yearly. */
 export function availableShifts(machine: Machine, site: Site, from: IsoDate, to: IsoDate): number {
   const off = new Set([...site.holidays, ...machine.maintenance]);
   const working = new Set(machine.calendar.workingWeekdays);
-  return eachDay(from, to).filter((d) => working.has(isoWeekday(d)) && !off.has(d)).length * machine.calendar.shiftsPerDay;
+  return eachDay(from, to).filter((d) => working.has(isoWeekday(d)) && !off.has(d.slice(5))).length * machine.calendar.shiftsPerDay;
 }

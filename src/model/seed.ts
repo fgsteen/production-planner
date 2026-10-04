@@ -1,9 +1,10 @@
-// Generic demo data (R7): placeholder names and numbers only.
-import type { Capability, Dataset, Machine } from './types';
+// Generic demo data (R7): placeholder names and numbers only. Holidays and maintenance are `MM-DD`
+// and recur every year.
+import type { Capability, Dataset, Demand, Machine } from './types';
 
 const ALL_WEEK = { shiftsPerDay: 3, workingWeekdays: [1, 2, 3, 4, 5, 6, 7] };
 
-const COMMON_HOLIDAYS = ['2027-01-01', '2027-03-26', '2027-03-29', '2027-05-06', '2027-12-24', '2027-12-25', '2027-12-26', '2027-12-31'];
+const COMMON_HOLIDAYS = ['01-01', '03-26', '03-29', '05-06', '12-24', '12-25', '12-26', '12-31'];
 
 function machine(id: string, siteId: string, small: number, large: number, maintenance: string[]): Machine {
   return { id, name: `Machine ${id}`, siteId, calendar: ALL_WEEK, smallLineClearMin: small, largeLineClearMin: large, maintenance };
@@ -23,6 +24,12 @@ const CAPS: [string, string, number, number][] = [
   ['A4', 'P04', 1300, 79], ['A4', 'P09', 1200, 81], ['A4', 'P10', 650, 69],
 ];
 
+/** Yearly demand per product, in units (P01 … P10). */
+const YEARLY_DEMAND = [6_000_000, 4_500_000, 3_000_000, 6_500_000, 6_000_000, 4_000_000, 3_000_000, 7_000_000, 5_000_000, 2_200_000];
+
+/** P07 sells mostly in summer: weeks 22–33 are pinned higher; the rest of the year shares what is left. */
+const SUMMER_PEAK: Record<string, number> = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(22 + i), 110_000]));
+
 const PRODUCT_NAMES = ['Alder', 'Birch', 'Cedar', 'Dogwood', 'Elm', 'Fir', 'Ginkgo', 'Hazel', 'Ivy', 'Juniper'];
 
 export const seedDataset: Dataset = {
@@ -30,7 +37,7 @@ export const seedDataset: Dataset = {
   settings: { planningYear: 2027, shiftHours: 8, maxCampaignShifts: 21 },
   sites: [
     { id: 'B', name: 'Site B', isDemandSite: false, holidays: COMMON_HOLIDAYS },
-    { id: 'A', name: 'Site A', isDemandSite: true, holidays: [...COMMON_HOLIDAYS, '2027-06-24'] },
+    { id: 'A', name: 'Site A', isDemandSite: true, holidays: [...COMMON_HOLIDAYS, '06-24'] },
   ],
   storageLocations: [
     { id: 'B-WH', name: 'B warehouse', siteId: 'B', capacityPallets: 400, accepts: 'local' },
@@ -39,18 +46,22 @@ export const seedDataset: Dataset = {
   ],
   truckLanes: [{ id: 'B-A', fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 5, palletsPerTruck: 30, runsOnWeekendsAndHolidays: false }],
   machines: [
-    machine('B1', 'B', 20, 90, ['2027-02-15', '2027-02-16']),
-    machine('B2', 'B', 25, 120, ['2027-04-12']),
-    machine('B3', 'B', 15, 75, ['2027-07-05', '2027-07-06', '2027-07-07']),
-    machine('B4', 'B', 30, 150, ['2027-09-20']),
-    machine('A1', 'A', 20, 100, ['2027-03-08']),
-    machine('A2', 'A', 20, 90, ['2027-05-17', '2027-05-18']),
-    machine('A3', 'A', 25, 135, ['2027-08-09']),
-    machine('A4', 'A', 15, 80, ['2027-10-11', '2027-10-12']),
+    machine('B1', 'B', 20, 90, ['02-15', '02-16']),
+    machine('B2', 'B', 25, 120, ['04-12']),
+    machine('B3', 'B', 15, 75, ['07-05', '07-06', '07-07']),
+    machine('B4', 'B', 30, 150, ['09-20']),
+    machine('A1', 'A', 20, 100, ['03-08']),
+    machine('A2', 'A', 20, 90, ['05-17', '05-18']),
+    machine('A3', 'A', 25, 135, ['08-09']),
+    machine('A4', 'A', 15, 80, ['10-11', '10-12']),
   ],
   products: PRODUCT_NAMES.map((name, i) => {
     const n = String(i + 1).padStart(2, '0');
     return { id: `P${n}`, name: `SF-${n} ${name}`, unitsPerCrate: [24, 48, 36, 60, 24][i % 5], cratesPerPallet: [40, 32, 36, 24, 48][i % 5] };
   }),
   capabilities: CAPS.map(([machineId, productId, ratePerHour, oeePct]): Capability => ({ machineId, productId, ratePerHour, oeePct })),
+  demand: YEARLY_DEMAND.map((yearlyUnits, i): Demand => {
+    const productId = `P${String(i + 1).padStart(2, '0')}`;
+    return { productId, yearlyUnits, weekOverrides: productId === 'P07' ? SUMMER_PEAK : {} };
+  }),
 };
