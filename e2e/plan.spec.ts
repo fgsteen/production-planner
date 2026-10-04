@@ -15,6 +15,13 @@ test('solves a draft plan for the demo data in the browser', async ({ page }) =>
   await page.getByRole('link', { name: 'Plan' }).click();
   await expect(summary).toContainText('Gap to optimum', { timeout: 30_000 });
   await expect(summary).not.toContainText('Unmet demand0 units');
+
+  // R64: the unmet panel lists P10 with its share, and its machine shows as fully used.
+  const unmet = page.getByTestId('unmet-panel');
+  await expect(unmet.getByTestId('unmet-P10')).toContainText('%');
+  await expect(page.locator('[data-testid^="full-"]').first()).toContainText('100 %');
+  await unmet.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/screens/plan-unmet.png', fullPage: true });
 });
 
 test('shows the weekly machine plan and the B → A transport breakdown', async ({ page }) => {

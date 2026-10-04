@@ -11,6 +11,7 @@ import type { WorkerRequest, WorkerResponse } from './plan.worker';
 import type { SolveStage } from './solve';
 import { Panel } from '../ui/Panel';
 import { GroupBySelect } from '../ui/GroupBy';
+import { UnmetPanel } from './Unmet';
 import { WarehousePanel } from './Warehouse';
 
 type State =
@@ -229,9 +230,11 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
         ))}
       </dl>
 
+      {plan.unmetUnits >= 1 && <UnmetPanel dataset={dataset} plan={plan} check={check} />}
+
       <Panel
         title="Shifts per machine and product"
-        hint="Shifts over the year, line clears included. Utilisation = planned ÷ available shifts. Grey cells: the machine can't make that product. Line clears: large (product changes) / small (between lots)."
+        hint="Shifts over the year, line clears included. Utilisation = planned ÷ available shifts. Grey cells: the machine can't make that product. Line clears: large (product changes) / small (between lots). Red: the machine is fully used."
         actions={<GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />}
       >
         <div className="overflow-x-auto">
@@ -259,6 +262,7 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
                 const lc = lineClears.get(m.id);
                 const available = (check.machineHours.get(m.id) ?? []).reduce((a, b) => a + b, 0) / dataset.settings.shiftHours;
                 const util = available > 0 ? (100 * total) / available : 0;
+                const full = util >= 99.5;
                 return (
                   <tr key={m.id} data-testid={`plan-row-${m.id}`} className="border-b border-line/50">
                     <td className="py-1 pr-3 font-medium">{m.name}</td>
@@ -283,9 +287,11 @@ function PlanView({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
                     <td className="py-1 pl-3">
                       <span className="flex items-center gap-2">
                         <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                          <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.min(100, util)}%` }} />
+                          <span className={`block h-full rounded-full ${full ? '' : 'bg-accent'}`} style={{ width: `${Math.min(100, util)}%`, ...(full && { background: '#e15759' }) }} />
                         </span>
-                        <span className="tabular w-10 text-right">{fmt(util)} %</span>
+                        <span className="tabular w-10 text-right" data-testid={full ? `full-${m.id}` : undefined} style={full ? { color: '#e15759', fontWeight: 600 } : undefined}>
+                          {fmt(util)} %
+                        </span>
                       </span>
                     </td>
                   </tr>
