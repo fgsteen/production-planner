@@ -23,7 +23,9 @@ export type DatasetAction =
   | { type: 'setDemandTotal'; productId: Id; yearlyUnits: number }
   /** `units: null` removes the override, so the week goes back to the even spread. */
   | { type: 'setDemandWeek'; productId: Id; week: number; units: number | null }
-  | { type: 'clearDemandOverrides'; productId: Id };
+  | { type: 'clearDemandOverrides'; productId: Id }
+  /** Units on hand at the start of week 1; 0 removes the entry. */
+  | { type: 'setInitialStock'; locationId: Id; productId: Id; units: number };
 
 /** Next free id of the form `<prefix><n>`, zero-padded to `width`. */
 export function nextId(prefix: string, taken: Iterable<Id>, width = 2): Id {
@@ -70,7 +72,11 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
       return { ...ds, storageLocations: [...ds.storageLocations, location] };
     }
     case 'removeStorage':
-      return { ...ds, storageLocations: ds.storageLocations.filter((l) => l.id !== action.id) };
+      return {
+        ...ds,
+        storageLocations: ds.storageLocations.filter((l) => l.id !== action.id),
+        initialStock: ds.initialStock.filter((s) => s.locationId !== action.id),
+      };
     case 'updateTruckLane':
       return { ...ds, truckLanes: patchById(ds.truckLanes, action.id, action.patch) };
 
@@ -108,6 +114,7 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
         products: ds.products.filter((p) => p.id !== action.id),
         capabilities: ds.capabilities.filter((c) => c.productId !== action.id),
         demand: ds.demand.filter((d) => d.productId !== action.id),
+        initialStock: ds.initialStock.filter((s) => s.productId !== action.id),
       };
 
     case 'updateCapability': {
@@ -132,6 +139,11 @@ export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
       });
     case 'clearDemandOverrides':
       return patchDemand(ds, action.productId, (d) => ({ ...d, weekOverrides: {} }));
+    case 'setInitialStock': {
+      const { locationId, productId, units } = action;
+      const rest = ds.initialStock.filter((s) => !(s.locationId === locationId && s.productId === productId));
+      return { ...ds, initialStock: units === 0 ? rest : [...rest, { locationId, productId, units }] };
+    }
   }
 }
 
@@ -174,6 +186,7 @@ export function parseDataset(text: string): ParseResult {
     if (!Array.isArray(obj[key])) return { ok: false, error: `Missing or invalid "${key}" list` };
   }
   if (obj.demand !== undefined && !Array.isArray(obj.demand)) return { ok: false, error: 'Invalid "demand" list' };
+  if (obj.initialStock !== undefined && !Array.isArray(obj.initialStock)) return { ok: false, error: 'Invalid "initialStock" list' };
   const ds = raw as Dataset;
   const dataset: Dataset = {
     ...ds,
@@ -181,6 +194,8 @@ export function parseDataset(text: string): ParseResult {
     settings: { ...seedDataset.settings, ...(obj.settings as Partial<Settings>) },
     // Files from before S04: no demand, and holidays/maintenance as full dates.
     // Malformed entries (e.g. null) pass through untouched; the error boundary handles them.
+    // Files from before S05 have no initial stock: start empty.
+    initialStock: ds.initialStock ?? [],
     demand: (ds.demand ?? []).map((d) => (isObject(d) ? { ...d, weekOverrides: d.weekOverrides ?? {} } : d)),
     sites: ds.sites.map((s) => (isObject(s) ? { ...s, holidays: toMonthDays(s.holidays) } : s)),
     machines: ds.machines.map((m) => (isObject(m) ? { ...m, maintenance: toMonthDays(m.maintenance) } : m)),

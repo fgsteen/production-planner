@@ -44,7 +44,7 @@ export const seedDataset: Dataset = {
     { id: 'A-IF', name: 'A in-factory storage', siteId: 'A', capacityPallets: 250, accepts: 'local' },
     { id: 'A-WH', name: 'A warehouse', siteId: 'A', capacityPallets: 600, accepts: 'inbound' },
   ],
-  truckLanes: [{ id: 'B-A', fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 5, palletsPerTruck: 30, runsOnWeekendsAndHolidays: false }],
+  truckLanes: [{ id: 'B-A', fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 10, palletsPerTruck: 30, runsOnWeekendsAndHolidays: false }],
   machines: [
     machine('B1', 'B', 20, 90, ['02-15', '02-16']),
     machine('B2', 'B', 25, 120, ['04-12']),
@@ -64,4 +64,5 @@ export const seedDataset: Dataset = {
     const productId = `P${String(i + 1).padStart(2, '0')}`;
     return { productId, yearlyUnits, weekOverrides: productId === 'P07' ? SUMMER_PEAK : {} };
   }),
+  initialStock: [],
 };

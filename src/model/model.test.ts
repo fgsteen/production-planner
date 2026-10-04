@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { availableShifts, effectiveRate, eachDay, isoWeekday, lotOutput, unitsPerPallet } from './capacity';
+import { availableShifts, effectiveRate, eachDay, isoWeekday, lotOutput, truckLimit, unitsPerPallet } from './capacity';
 import { seedDataset } from './seed';
 import type { Dataset } from './types';
 import { validateDataset } from './validate';
@@ -26,9 +26,10 @@ describe('seed dataset', () => {
     expect(sitesPerProduct.some((s) => s.size === 1 && s.has('A'))).toBe(true);
   });
 
-  it('has the three storage locations and a B → A truck lane with defaults', () => {
+  it('has the three storage locations and a B → A truck lane', () => {
     expect(seedDataset.storageLocations.map((l) => `${l.siteId}:${l.accepts}`).sort()).toEqual(['A:inbound', 'A:local', 'B:local']);
-    expect(seedDataset.truckLanes).toEqual([expect.objectContaining({ fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 5, palletsPerTruck: 30 })]);
+    // 10 trucks/week rather than the default 5: the demo's B-only products need ~7.4 (S05).
+    expect(seedDataset.truckLanes).toEqual([expect.objectContaining({ fromSiteId: 'B', toSiteId: 'A', maxTrucksPerWeek: 10, palletsPerTruck: 30 })]);
   });
 });
 
@@ -120,5 +121,42 @@ describe('capacity', () => {
     expect(availableShifts(m, site, '2028-12-20', '2029-01-02')).toBe((14 - 1) * 3);
     expect(availableShifts(m, site, '2027-02-27', '2027-03-01')).toBe(3 * 3);
     expect(availableShifts(m, site, '2028-02-27', '2028-03-01')).toBe(3 * 3); // 4 days, 02-29 off
+  });
+});
+
+describe('truckLimit', () => {
+  const lane = seedDataset.truckLanes[0]; // 10 trucks/week, not on weekends or holidays
+  const sites = seedDataset.sites;
+
+  it('allows the weekly maximum in a normal week', () => {
+    expect(truckLimit(lane, sites, '2027-03-01', '2027-03-07')).toBe(10);
+  });
+
+  it('loses trucks for weekday holidays at either site', () => {
+    // 2027-06-24 is a Thursday, a holiday at A only: 4 of 5 weekdays → 8 trucks.
+    expect(truckLimit(lane, sites, '2027-06-21', '2027-06-27')).toBe(8);
+    // Dec 27 – Jan 2: Dec 31 (Fri) and Jan 1 (Sat) are holidays; only Friday is a weekday.
+    expect(truckLimit(lane, sites, '2027-12-27', '2028-01-02')).toBe(8);
+  });
+
+  it('ignores holidays when the lane runs every day', () => {
+    expect(truckLimit({ ...lane, runsOnWeekendsAndHolidays: true }, sites, '2027-06-21', '2027-06-27')).toBe(10);
+  });
+});
+
+describe('initial stock validation', () => {
+  it('flags unknown references, negatives and stock above capacity', () => {
+    const ds = clone();
+    ds.initialStock = [
+      { locationId: 'X', productId: 'P01', units: 1 },
+      { locationId: 'A-IF', productId: 'P99', units: 1 },
+      { locationId: 'B-WH', productId: 'P01', units: -1 },
+      { locationId: 'A-WH', productId: 'P01', units: 960 * 601 }, // P01: 960 units/pallet
+    ];
+    const errors = validateDataset(ds);
+    expect(errors).toContain('Initial stock X/P01: unknown storage location');
+    expect(errors).toContain('Initial stock A-IF/P99: unknown product');
+    expect(errors).toContain('Initial stock B-WH/P01: units must be ≥ 0');
+    expect(errors).toContain('Storage A-WH: initial stock (601 pallets) exceeds its capacity (600)');
   });
 });

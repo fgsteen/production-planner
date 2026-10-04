@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkCapacity, weeklyDemand } from './demand';
+import { checkCapacity, demandWeekWeights, weeklyDemand } from './demand';
 import { seedDataset } from './seed';
 import type { Dataset } from './types';
 import { validateDataset } from './validate';
@@ -20,12 +20,24 @@ describe('ISO weeks', () => {
 });
 
 describe('weeklyDemand', () => {
-  it('spreads the yearly total evenly', () => {
-    expect(weeklyDemand({ productId: 'P', yearlyUnits: 520, weekOverrides: {} }, 52)).toEqual(new Array(52).fill(10));
+  const even = new Array(52).fill(7);
+
+  it('spreads the yearly total evenly over equal weeks', () => {
+    expect(weeklyDemand({ productId: 'P', yearlyUnits: 520, weekOverrides: {} }, even)).toEqual(new Array(52).fill(10));
+  });
+
+  it('gives weeks with demand-site holidays a smaller share', () => {
+    const ds: Dataset = { ...seedDataset, sites: seedDataset.sites.map((s) => ({ ...s, holidays: s.isDemandSite ? ['12-24', '12-25'] : [] })) };
+    const weights = demandWeekWeights(ds);
+    expect(weights[50]).toBe(5); // 2027 week 51: Dec 20–26
+    expect(weights.filter((w) => w === 7)).toHaveLength(51);
+    const w = weeklyDemand({ productId: 'P', yearlyUnits: 362, weekOverrides: {} }, weights); // 51 × 7 + 5 = 362 days
+    expect(w[50]).toBeCloseTo(5);
+    expect(w[0]).toBeCloseTo(7);
   });
 
   it('pins overridden weeks and spreads the rest over the other weeks', () => {
-    const w = weeklyDemand({ productId: 'P', yearlyUnits: 1000, weekOverrides: { '1': 490, '52': 0 } }, 52);
+    const w = weeklyDemand({ productId: 'P', yearlyUnits: 1000, weekOverrides: { '1': 490, '52': 0 } }, even);
     expect(w[0]).toBe(490);
     expect(w[51]).toBe(0);
     expect(w[1]).toBeCloseTo(510 / 50);
@@ -33,8 +45,8 @@ describe('weeklyDemand', () => {
   });
 
   it('is zero without demand, and ignores weeks outside the year', () => {
-    expect(weeklyDemand(undefined, 52)).toEqual(new Array(52).fill(0));
-    expect(weeklyDemand({ productId: 'P', yearlyUnits: 520, weekOverrides: { '53': 100 } }, 52)[0]).toBe(10);
+    expect(weeklyDemand(undefined, even)).toEqual(new Array(52).fill(0));
+    expect(weeklyDemand({ productId: 'P', yearlyUnits: 520, weekOverrides: { '53': 100 } }, even)[0]).toBe(10);
   });
 });
 

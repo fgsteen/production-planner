@@ -1,4 +1,4 @@
-import type { Capability, IsoDate, Machine, Product, Settings, Site } from './types';
+import type { Capability, IsoDate, Machine, Product, Settings, Site, TruckLane } from './types';
 
 /** Effective output per hour: rate × OEE. */
 export function effectiveRate(cap: Capability): number {
@@ -39,4 +39,17 @@ export function availableShifts(machine: Machine, site: Site, from: IsoDate, to:
   const off = new Set([...site.holidays, ...machine.maintenance]);
   const working = new Set(machine.calendar.workingWeekdays);
   return eachDay(from, to).filter((d) => working.has(isoWeekday(d)) && !off.has(d.slice(5))).length * machine.calendar.shiftsPerDay;
+}
+
+/**
+ * Trucks allowed on a lane in [from, to] (one ISO week). Lanes that run on weekends and holidays get
+ * the full weekly maximum. Otherwise the maximum is for a five-day week and shrinks with the
+ * weekdays lost to holidays at either end, rounded down to whole trucks.
+ */
+export function truckLimit(lane: TruckLane, sites: Site[], from: IsoDate, to: IsoDate): number {
+  if (lane.runsOnWeekendsAndHolidays) return lane.maxTrucksPerWeek;
+  const ends = sites.filter((s) => s.id === lane.fromSiteId || s.id === lane.toSiteId);
+  const off = new Set(ends.flatMap((s) => s.holidays));
+  const days = eachDay(from, to).filter((d) => isoWeekday(d) <= 5 && !off.has(d.slice(5))).length;
+  return Math.floor((lane.maxTrucksPerWeek * days) / 5 + 1e-9);
 }

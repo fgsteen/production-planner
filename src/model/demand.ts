@@ -1,12 +1,16 @@
 // Weekly demand and a solver-free capacity check (R35). The check gives necessary conditions only:
 // it treats each product as if it had its capable machines to itself, so passing it does not prove
 // a plan exists. The machine load is an estimate that splits demand across machines by capacity.
-import { availableShifts, effectiveRate } from './capacity';
+import { availableShifts, eachDay, effectiveRate } from './capacity';
 import type { Dataset, Demand, Id } from './types';
 import { isoWeekRange, isoWeeksInYear } from './weeks';
 
-/** Units per week (index 0 = week 1): overrides as given, the rest of the total spread evenly. */
-export function weeklyDemand(d: Demand | undefined, weeks: number): number[] {
+/**
+ * Units per week (index 0 = week 1): overrides as given, the rest of the total spread over the other
+ * weeks in proportion to `weights` (one per week; e.g. the demand site's open days).
+ */
+export function weeklyDemand(d: Demand | undefined, weights: number[]): number[] {
+  const weeks = weights.length;
   if (!d) return new Array(weeks).fill(0);
   const pinned = new Map<number, number>();
   for (const [week, units] of Object.entries(d.weekOverrides)) {
@@ -14,9 +18,20 @@ export function weeklyDemand(d: Demand | undefined, weeks: number): number[] {
     if (Number.isInteger(w) && w >= 1 && w <= weeks) pinned.set(w, units);
   }
   const pinnedSum = [...pinned.values()].reduce((a, b) => a + b, 0);
-  const free = weeks - pinned.size;
-  const even = free > 0 ? Math.max(0, d.yearlyUnits - pinnedSum) / free : 0;
-  return Array.from({ length: weeks }, (_, i) => pinned.get(i + 1) ?? even);
+  const freeWeight = weights.reduce((sum, wt, i) => (pinned.has(i + 1) ? sum : sum + wt), 0);
+  const perWeight = freeWeight > 0 ? Math.max(0, d.yearlyUnits - pinnedSum) / freeWeight : 0;
+  return weights.map((wt, i) => pinned.get(i + 1) ?? wt * perWeight);
+}
+
+/** Days per ISO week that are not holidays at the demand site (7 in a normal week). */
+export function demandWeekWeights(ds: Dataset): number[] {
+  const year = ds.settings.planningYear;
+  const site = ds.sites.find((s) => s.isDemandSite);
+  const holidays = new Set(site?.holidays ?? []);
+  return Array.from({ length: isoWeeksInYear(year) }, (_, i) => {
+    const { from, to } = isoWeekRange(year, i + 1);
+    return eachDay(from, to).filter((d) => !holidays.has(d.slice(5))).length;
+  });
 }
 
 export interface ProductCheck {
@@ -68,12 +83,13 @@ export function checkCapacity(ds: Dataset): CapacityCheck {
     );
   }
 
+  const weights = demandWeekWeights(ds);
   const needed = new Map<Id, number>(ds.machines.map((m) => [m.id, 0]));
   const products = ds.products.map((p): ProductCheck => {
     const caps = ds.capabilities.filter((c) => c.productId === p.id && machines.has(c.machineId));
     const demand = weeklyDemand(
       ds.demand.find((d) => d.productId === p.id),
-      weeks,
+      weights,
     );
     const weeklyMax = new Array(weeks).fill(0);
     let cumDemand = 0;

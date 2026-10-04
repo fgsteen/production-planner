@@ -17,7 +17,7 @@ test.describe('overview', () => {
     const map = page.getByTestId('site-map');
     await expect(map.locator('.react-flow__node-machine')).toHaveCount(8);
     await expect(map.locator('.react-flow__node-store')).toHaveCount(3);
-    await expect(map.getByText('≤ 5 trucks/wk × 30 pallets')).toBeVisible();
+    await expect(map.getByText('≤ 10 trucks/wk × 30 pallets')).toBeVisible();
     await expect(map.getByText('Next process step')).toBeVisible();
   });
 

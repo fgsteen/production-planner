@@ -26,7 +26,7 @@ export function validateDataset(ds: Dataset): string[] {
   const siteIds = uniqueIds('site', ds.sites);
   const machineIds = uniqueIds('machine', ds.machines);
   const productIds = uniqueIds('product', ds.products);
-  uniqueIds('storage location', ds.storageLocations);
+  const locationIds = uniqueIds('storage location', ds.storageLocations);
   uniqueIds('truck lane', ds.truckLanes);
 
   if (!(Number.isInteger(ds.settings.planningYear) && ds.settings.planningYear >= 2000 && ds.settings.planningYear <= 2100))
@@ -101,6 +101,25 @@ export function validateDataset(ds: Dataset): string[] {
     if (pinned > d.yearlyUnits + 1e-6) err(`Demand ${d.productId}: weekly overrides (${pinned}) exceed the yearly total (${d.yearlyUnits})`);
     else if (entries.length >= weeks && Math.abs(pinned - d.yearlyUnits) > 1e-6)
       err(`Demand ${d.productId}: all weeks are set but sum to ${pinned}, not the yearly total ${d.yearlyUnits}`);
+  }
+
+  const stocked = new Set<string>();
+  const palletsAt = new Map<string, number>();
+  const products = new Map(ds.products.map((p) => [p.id, p]));
+  for (const s of ds.initialStock) {
+    const key = `${s.locationId}/${s.productId}`;
+    if (stocked.has(key)) err(`Duplicate initial stock ${key}`);
+    stocked.add(key);
+    if (!locationIds.has(s.locationId)) err(`Initial stock ${key}: unknown storage location`);
+    const p = products.get(s.productId);
+    if (!p) err(`Initial stock ${key}: unknown product`);
+    if (!(s.units >= 0)) err(`Initial stock ${key}: units must be ≥ 0`);
+    else if (p && p.unitsPerCrate > 0 && p.cratesPerPallet > 0)
+      palletsAt.set(s.locationId, (palletsAt.get(s.locationId) ?? 0) + s.units / (p.unitsPerCrate * p.cratesPerPallet));
+  }
+  for (const l of ds.storageLocations) {
+    const pallets = palletsAt.get(l.id) ?? 0;
+    if (pallets > l.capacityPallets + 1e-6) err(`Storage ${l.id}: initial stock (${Math.ceil(pallets)} pallets) exceeds its capacity (${l.capacityPallets})`);
   }
 
   return errors;

@@ -70,13 +70,20 @@ export interface Capability {
 
 /**
  * Forecast for one product over the planning year, in units. By default the yearly total is spread
- * evenly over the ISO weeks; `weekOverrides` (week number → units) pins chosen weeks, and the rest
+ * over the ISO weeks in proportion to the demand site's open days (days that are not its holidays); `weekOverrides` (week number → units) pins chosen weeks, and the rest
  * of the total is spread evenly over the other weeks.
  */
 export interface Demand {
   productId: Id;
   yearlyUnits: number;
   weekOverrides: Record<string, number>;
+}
+
+/** Units of a product on hand in a storage location at the start of week 1. */
+export interface InitialStock {
+  locationId: Id;
+  productId: Id;
+  units: number;
 }
 
 export interface Settings {
@@ -97,4 +104,6 @@ export interface Dataset {
   products: Product[];
   capabilities: Capability[];
   demand: Demand[];
+  /** Missing entries mean zero. */
+  initialStock: InitialStock[];
 }
