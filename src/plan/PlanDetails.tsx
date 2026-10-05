@@ -1,10 +1,11 @@
 // Plan page detail views: the weekly machine plan (R42) and the B → A transport breakdown (R43).
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { CapacityCheck } from '../model/demand';
 import type { Dataset, Id } from '../model/types';
 import { fmt, productColor } from '../ui/palette';
 import type { PlanResult } from './lp';
-import { productName } from '../model/products';
+import { groupProducts, sumByGroup, type ProductGroup } from '../model/products';
+import { GroupBySelect } from '../ui/GroupBy';
 import { Panel } from '../ui/Panel';
 
 const one = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
@@ -28,19 +29,37 @@ export function Toggle<T extends string>({ value, options, onChange, label }: { 
   );
 }
 
-export function Legend({ dataset, productIds }: { dataset: Dataset; productIds: Set<Id> }) {
+/** Legend of the groups (products, or variants of a characteristic) that hold any of `productIds`. */
+export function Legend({ groups, productIds }: { groups: ProductGroup[]; productIds: Set<Id> }) {
   return (
     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-      {dataset.products.map((p, i) =>
-        productIds.has(p.id) ? (
-          <li key={p.id} className="inline-flex items-center gap-1 whitespace-nowrap" title={p.id}>
-            <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-            {productName(dataset, p)}
+      {groups
+        .filter((g) => g.productIds.some((id) => productIds.has(id)))
+        .map((g) => (
+          <li key={g.key} className="inline-flex items-center gap-1 whitespace-nowrap" title={g.productIds.join(', ')}>
+            <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(g.colorIndex) }} />
+            {g.label}
           </li>
-        ) : null,
-      )}
+        ))}
     </ul>
   );
+}
+
+/** A column header with the group's colour and label. */
+export function GroupHeader({ group }: { group: ProductGroup }) {
+  return (
+    <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium" title={group.productIds.join(', ')}>
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(group.colorIndex) }} />
+        {group.label}
+      </span>
+    </th>
+  );
+}
+
+/** Panel actions side by side, e.g. "Group by" and a view toggle. */
+export function Actions({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-3">{children}</div>;
 }
 
 /** Shifts per machine, week and product. */
@@ -55,18 +74,24 @@ function useWeekGrid(dataset: Dataset, plan: PlanResult, weeks: number) {
 export function WeeklyMachinePlan({ dataset, plan, check }: { dataset: Dataset; plan: PlanResult; check: CapacityCheck }) {
   const [view, setView] = useState<'Chart' | 'Table'>('Chart');
   const [machineId, setMachineId] = useState<Id>(dataset.machines[0]?.id ?? '');
+  const [groupBy, setGroupBy] = useState<Id | null>(null);
+  const groups = groupProducts(dataset, dataset.products, groupBy);
   const { weeks } = check;
   const grid = useWeekGrid(dataset, plan, weeks);
   const available = (id: Id) => (check.machineHours.get(id) ?? []).map((h) => h / dataset.settings.shiftHours);
-  const pIndex = new Map(dataset.products.map((p, i) => [p.id, i]));
   const used = new Set(plan.weekShifts.map((s) => s.productId));
 
   return (
     <Panel
       title="Weekly machine plan"
       testId="machine-week-plan"
-      hint="Shifts per ISO week, coloured by product. The grey backdrop is the shifts available that week (holidays and maintenance removed)."
-      actions={<Toggle label="Weekly machine plan view" value={view} options={['Chart', 'Table'] as const} onChange={setView} />}
+      hint="Shifts per ISO week, coloured by product (or group). The grey backdrop is the shifts available that week (holidays and maintenance removed)."
+      actions={
+        <Actions>
+          <GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />
+          <Toggle label="Weekly machine plan view" value={view} options={['Chart', 'Table'] as const} onChange={setView} />
+        </Actions>
+      }
     >
 
       {view === 'Chart' ? (
@@ -85,14 +110,14 @@ export function WeeklyMachinePlan({ dataset, plan, check }: { dataset: Dataset; 
                 </div>
                 <div className="flex h-10 min-w-0 flex-1 items-end gap-px">
                   {grid.get(m.id)!.map((byProduct, w) => {
-                    const entries = [...byProduct].sort((a, b) => pIndex.get(a[0])! - pIndex.get(b[0])!);
-                    const tip = `${m.name} · week ${w + 1}: ${entries.map(([p, s]) => `${p} ${fmt1(s)}`).join(', ') || 'idle'} (${fmt1(planned[w])} of ${fmt1(avail[w])} shifts)`;
+                    const entries = sumByGroup(groups, byProduct);
+                    const tip = `${m.name} · week ${w + 1}: ${entries.map(([g, s]) => `${g.label} ${fmt1(s)}`).join(', ') || 'idle'} (${fmt1(planned[w])} of ${fmt1(avail[w])} shifts)`;
                     return (
                       <div key={w} title={tip} className="relative h-full min-w-0 flex-1">
                         <div className="absolute inset-x-0 bottom-0 rounded-[1px] bg-surface-2" style={{ height: `${(100 * avail[w]) / max}%` }} />
                         <div className="absolute inset-x-0 bottom-0 flex flex-col-reverse">
-                          {entries.map(([p, s]) => (
-                            <div key={p} style={{ height: `${(40 * s) / max}px`, background: productColor(pIndex.get(p)!) }} />
+                          {entries.map(([g, s]) => (
+                            <div key={g.key} style={{ height: `${(40 * s) / max}px`, background: productColor(g.colorIndex) }} />
                           ))}
                         </div>
                       </div>
@@ -113,11 +138,11 @@ export function WeeklyMachinePlan({ dataset, plan, check }: { dataset: Dataset; 
             </div>
           </div>
           <div className="pt-2">
-            <Legend dataset={dataset} productIds={used} />
+            <Legend groups={groups} productIds={used} />
           </div>
         </div>
       ) : (
-        <MachineWeekTable dataset={dataset} grid={grid} available={available(machineId)} machineId={machineId} onMachine={setMachineId} />
+        <MachineWeekTable dataset={dataset} groups={groups} grid={grid} available={available(machineId)} machineId={machineId} onMachine={setMachineId} />
       )}
     </Panel>
   );
@@ -125,18 +150,20 @@ export function WeeklyMachinePlan({ dataset, plan, check }: { dataset: Dataset; 
 
 function MachineWeekTable({
   dataset,
+  groups,
   grid,
   available,
   machineId,
   onMachine,
 }: {
   dataset: Dataset;
+  groups: ProductGroup[];
   grid: Map<Id, Map<Id, number>[]>;
   available: number[];
   machineId: Id;
   onMachine: (id: Id) => void;
 }) {
-  const capable = dataset.products.flatMap((p, i) => (dataset.capabilities.some((c) => c.machineId === machineId && c.productId === p.id) ? [{ p, i }] : []));
+  const capable = groups.filter((g) => g.productIds.some((id) => dataset.capabilities.some((c) => c.machineId === machineId && c.productId === id)));
   const rows = grid.get(machineId) ?? [];
   return (
     <div>
@@ -155,13 +182,8 @@ function MachineWeekTable({
           <thead className="sticky top-0 bg-surface">
             <tr className="border-b border-line text-muted">
               <th className="py-1.5 pr-3 text-left font-medium">Week</th>
-              {capable.map(({ p, i }) => (
-                <th key={p.id} className="whitespace-nowrap px-2 py-1.5 text-right font-medium" title={p.id}>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                    {productName(dataset, p)}
-                  </span>
-                </th>
+              {capable.map((g) => (
+                <GroupHeader key={g.key} group={g} />
               ))}
               <th className="px-2 py-1.5 text-right font-medium">Planned</th>
               <th className="px-2 py-1.5 text-right font-medium">Available</th>
@@ -174,10 +196,10 @@ function MachineWeekTable({
               return (
                 <tr key={w} className="border-b border-line/50">
                   <td className="tabular py-1 pr-3">{w + 1}</td>
-                  {capable.map(({ p }) => {
-                    const s = byProduct.get(p.id) ?? 0;
+                  {capable.map((g) => {
+                    const s = g.productIds.reduce((a, id) => a + (byProduct.get(id) ?? 0), 0);
                     return (
-                      <td key={p.id} className="tabular px-2 py-1 text-right">
+                      <td key={g.key} className="tabular px-2 py-1 text-right">
                         {s >= 0.05 ? fmt1(s) : <span className="text-faint">–</span>}
                       </td>
                     );
@@ -199,6 +221,8 @@ function MachineWeekTable({
 
 export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: PlanResult }) {
   const [unit, setUnit] = useState<'Pallets' | 'Units'>('Pallets');
+  const [groupBy, setGroupBy] = useState<Id | null>(null);
+  const groups = groupProducts(dataset, dataset.products, groupBy);
   return (
     <>
       {plan.lanes.map((lane) => {
@@ -207,9 +231,10 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
         const to = dataset.sites.find((s) => s.id === def.toSiteId)?.name ?? def.toSiteId;
         const shipments = plan.shipments.filter((s) => s.laneId === lane.laneId);
         const shipped = new Set(shipments.map((s) => s.productId));
-        const products = dataset.products.flatMap((p, i) => (shipped.has(p.id) ? [{ p, i }] : []));
+        const columns = groups.filter((g) => g.productIds.some((id) => shipped.has(id)));
         const cell = new Map(shipments.map((s) => [`${s.week}/${s.productId}`, s]));
         const value = (s: { units: number; pallets: number } | undefined) => (s ? (unit === 'Pallets' ? s.pallets : s.units) : 0);
+        const groupValue = (week: number, g: ProductGroup) => g.productIds.reduce((a, id) => a + value(cell.get(`${week}/${id}`)), 0);
         const totalUnits = shipments.reduce((a, s) => a + s.units, 0);
         const totalPallets = lane.weeks.reduce((a, w) => a + w.pallets, 0);
         const trucks = lane.weeks.reduce((a, w) => a + w.trucksUsed, 0);
@@ -228,7 +253,12 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
                   : 'Trucks run on weekdays only, so the limit drops in weeks with weekday holidays.'}
               </>
             }
-            actions={<Toggle label="Transport unit" value={unit} options={['Pallets', 'Units'] as const} onChange={setUnit} />}
+            actions={
+              <Actions>
+                <GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />
+                <Toggle label="Transport unit" value={unit} options={['Pallets', 'Units'] as const} onChange={setUnit} />
+              </Actions>
+            }
           >
             <dl className="mb-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4" data-testid="transport-summary">
               {(
@@ -250,13 +280,8 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-line text-muted">
                     <th className="py-1.5 pr-3 text-left font-medium">Week</th>
-                    {products.map(({ p, i }) => (
-                      <th key={p.id} className="whitespace-nowrap px-2 py-1.5 text-right font-medium" title={p.id}>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(i) }} />
-                          {productName(dataset, p)}
-                        </span>
-                      </th>
+                    {columns.map((g) => (
+                      <GroupHeader key={g.key} group={g} />
                     ))}
                     <th className="px-2 py-1.5 text-right font-medium">Total</th>
                     <th className="w-44 py-1.5 pl-3 text-left font-medium">Trucks used / limit</th>
@@ -264,15 +289,15 @@ export function TransportBreakdown({ dataset, plan }: { dataset: Dataset; plan: 
                 </thead>
                 <tbody>
                   {lane.weeks.map((w, k) => {
-                    const total = unit === 'Pallets' ? w.pallets : products.reduce((a, { p }) => a + value(cell.get(`${k + 1}/${p.id}`)), 0);
+                    const total = unit === 'Pallets' ? w.pallets : columns.reduce((a, g) => a + groupValue(k + 1, g), 0);
                     const full = w.truckLimit > 0 && w.trucksUsed >= w.truckLimit;
                     return (
                       <tr key={k} className="border-b border-line/50" data-testid={`transport-week-${k + 1}`}>
                         <td className="tabular py-1 pr-3">{k + 1}</td>
-                        {products.map(({ p }) => {
-                          const v = value(cell.get(`${k + 1}/${p.id}`));
+                        {columns.map((g) => {
+                          const v = groupValue(k + 1, g);
                           return (
-                            <td key={p.id} className="tabular px-2 py-1 text-right">
+                            <td key={g.key} className="tabular px-2 py-1 text-right">
                               {v >= 0.5 ? fmt(v) : <span className="text-faint">–</span>}
                             </td>
                           );

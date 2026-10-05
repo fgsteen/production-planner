@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { availableShifts, effectiveRate, eachDay, isoWeekday, lotOutput, truckLimit, unitsPerPallet } from './capacity';
+import { groupProducts, sumByGroup } from './products';
 import { seedDataset } from './seed';
 import type { Dataset } from './types';
 import { validateDataset } from './validate';
@@ -175,5 +176,20 @@ describe('initial stock validation', () => {
     expect(errors).toContain('Initial stock A-IF/P99: unknown product');
     expect(errors).toContain('Initial stock B-WH/P01: units must be ≥ 0');
     expect(errors).toContain('Storage A-WH: initial stock (601 pallets) exceeds its capacity (600)');
+  });
+});
+
+describe('sumByGroup', () => {
+  it('sums per-product values into groups, in group order, leaving out empty groups', () => {
+    const groups = groupProducts(seedDataset, seedDataset.products, 'X');
+    const [k, l] = seedDataset.products.filter((p) => p.variants.X === 'X1' || p.variants.X === 'X2').reduce<[string[], string[]]>(
+      (acc, p) => (acc[p.variants.X === 'X1' ? 0 : 1].push(p.id), acc),
+      [[], []],
+    );
+    const sums = sumByGroup(groups, [[l[0], 2], [k[0], 1], [k[1], 3], ['nope', 9]]);
+    expect(sums.map(([g, v]) => [g.label, v])).toEqual([
+      ['X K', 4],
+      ['X L', 2],
+    ]);
   });
 });

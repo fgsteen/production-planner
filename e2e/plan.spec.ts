@@ -90,6 +90,15 @@ test('priorities, line clears, warehouses and group-by (R22, R31, R44, R46, R48)
   // R44: group the shifts table by X.
   await page.getByLabel('Group by').first().selectOption('X');
   await expect(page.getByTestId('plan-table').locator('thead')).toContainText('X K');
+  // ...and the weekly plan, warehouse and transport views (rest of R44).
+  const weekly = page.getByTestId('machine-week-plan');
+  await weekly.getByLabel('Group by').selectOption('X');
+  await expect(weekly.getByTestId('machine-week-chart')).toContainText('X K');
+  await warehouses.getByLabel('Group by').selectOption('X');
+  await expect(warehouses.getByTestId('warehouse-table').locator('thead')).toContainText('X K');
+  const transport = page.getByTestId('transport-B-A');
+  await transport.getByLabel('Group by').selectOption('Y');
+  await expect(transport.getByTestId('transport-table').locator('thead')).toContainText('Y 1');
 
   // R22: a weight change is saved and re-solved; demand stays met, and a higher line clear weight
   // gives less line clear time (ADR 0008).

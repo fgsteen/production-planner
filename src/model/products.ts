@@ -46,6 +46,22 @@ export interface ProductGroup {
   colorIndex: number;
 }
 
+/** Product id → its group, for summing per-product values into groups. */
+export function groupOf(groups: ProductGroup[]): Map<Id, ProductGroup> {
+  return new Map(groups.flatMap((g) => g.productIds.map((id) => [id, g] as const)));
+}
+
+/** Sums `[productId, value]` pairs per group, in group order; groups without a value are left out. */
+export function sumByGroup(groups: ProductGroup[], values: Iterable<readonly [Id, number]>): [ProductGroup, number][] {
+  const of = groupOf(groups);
+  const sums = new Map<Id, number>();
+  for (const [id, v] of values) {
+    const g = of.get(id);
+    if (g) sums.set(g.key, (sums.get(g.key) ?? 0) + v);
+  }
+  return groups.flatMap((g) => (sums.has(g.key) ? [[g, sums.get(g.key)!] as [ProductGroup, number]] : []));
+}
+
 /**
  * Groups `products` by the variant of characteristic `by`; `null` gives one group per product.
  * Groups follow the variant order and skip variants no product uses.

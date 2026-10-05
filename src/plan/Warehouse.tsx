@@ -1,12 +1,13 @@
 // Plan page: stock per storage location and week, by product, against capacity (R46).
 import { useState } from 'react';
-import { productName } from '../model/products';
-import type { Dataset } from '../model/types';
+import { groupProducts, sumByGroup, type ProductGroup } from '../model/products';
+import type { Dataset, Id } from '../model/types';
+import { GroupBySelect } from '../ui/GroupBy';
 import { fmt, productColor } from '../ui/palette';
 import { Panel } from '../ui/Panel';
 import { poolName } from './limits';
 import type { PlanResult } from './lp';
-import { Legend, Toggle } from './PlanDetails';
+import { Actions, GroupHeader, Legend, Toggle } from './PlanDetails';
 
 const one = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 const fmt1 = (n: number) => one.format(n);
@@ -17,7 +18,8 @@ export function WarehousePanel({ dataset, plan }: { dataset: Dataset; plan: Plan
   const [view, setView] = useState<'Chart' | 'Table'>('Chart');
   const pools = plan.storage.filter((p) => p.locationIds.length > 0);
   const [poolIdx, setPoolIdx] = useState(0);
-  const pIndex = new Map(dataset.products.map((p, i) => [p.id, i]));
+  const [groupBy, setGroupBy] = useState<Id | null>(null);
+  const groups = groupProducts(dataset, dataset.products, groupBy);
   const used = new Set(pools.flatMap((p) => p.byProduct.map((b) => b.productId)));
   const weeks = pools[0]?.pallets.length ?? 0;
 
@@ -25,8 +27,13 @@ export function WarehousePanel({ dataset, plan }: { dataset: Dataset; plan: Plan
     <Panel
       title="Warehouses"
       testId="warehouse-panel"
-      hint="Pallets in stock at the end of each ISO week, coloured by product. The line is the location's capacity. Locations at a site that take the same goods are pooled."
-      actions={<Toggle label="Warehouse view" value={view} options={['Chart', 'Table'] as const} onChange={setView} />}
+      hint="Pallets in stock at the end of each ISO week, coloured by product (or group). The line is the location's capacity. Locations at a site that take the same goods are pooled."
+      actions={
+        <Actions>
+          <GroupBySelect characteristics={dataset.characteristics} value={groupBy} onChange={setGroupBy} />
+          <Toggle label="Warehouse view" value={view} options={['Chart', 'Table'] as const} onChange={setView} />
+        </Actions>
+      }
     >
       {view === 'Chart' ? (
         <div className="space-y-4" data-testid="warehouse-chart">
@@ -48,12 +55,15 @@ export function WarehousePanel({ dataset, plan }: { dataset: Dataset; plan: Plan
                     title={`Capacity ${fmt(pool.capacityPallets)} pallets`}
                   />
                   {Array.from({ length: weeks }, (_, w) => {
-                    const entries = pool.byProduct.filter((b) => b.pallets[w] >= 0.05);
-                    const tip = `Week ${w + 1}: ${fmt1(pool.pallets[w])} pallets${entries.length ? ` — ${entries.map((b) => `${b.productId} ${fmt1(b.pallets[w])}`).join(', ')}` : ''}`;
+                    const entries = sumByGroup(
+                      groups,
+                      pool.byProduct.map((b) => [b.productId, b.pallets[w]] as const),
+                    ).filter(([, v]) => v >= 0.05);
+                    const tip = `Week ${w + 1}: ${fmt1(pool.pallets[w])} pallets${entries.length ? ` — ${entries.map(([g, v]) => `${g.label} ${fmt1(v)}`).join(', ')}` : ''}`;
                     return (
                       <div key={w} title={tip} className="flex h-full min-w-0 flex-1 flex-col-reverse bg-surface-2/50">
-                        {entries.map((b) => (
-                          <div key={b.productId} style={{ height: `${(100 * b.pallets[w]) / max}%`, background: productColor(pIndex.get(b.productId)!) }} />
+                        {entries.map(([g, v]) => (
+                          <div key={g.key} style={{ height: `${(100 * v) / max}%`, background: productColor(g.colorIndex) }} />
                         ))}
                       </div>
                     );
@@ -69,7 +79,7 @@ export function WarehousePanel({ dataset, plan }: { dataset: Dataset; plan: Plan
               </div>
             ))}
           </div>
-          <Legend dataset={dataset} productIds={used} />
+          <Legend groups={groups} productIds={used} />
         </div>
       ) : (
         <div>
@@ -83,28 +93,26 @@ export function WarehousePanel({ dataset, plan }: { dataset: Dataset; plan: Plan
               ))}
             </select>
           </label>
-          {pools[poolIdx] && <WarehouseTable dataset={dataset} pool={pools[poolIdx]} />}
+          {pools[poolIdx] && <WarehouseTable groups={groups} pool={pools[poolIdx]} />}
         </div>
       )}
     </Panel>
   );
 }
 
-function WarehouseTable({ dataset, pool }: { dataset: Dataset; pool: PlanResult['storage'][number] }) {
-  const products = pool.byProduct.map((b) => ({ ...b, i: dataset.products.findIndex((p) => p.id === b.productId) }));
+function WarehouseTable({ groups, pool }: { groups: ProductGroup[]; pool: PlanResult['storage'][number] }) {
+  const held = new Map(pool.byProduct.map((b) => [b.productId, b.pallets]));
+  const columns = groups
+    .filter((g) => g.productIds.some((id) => held.has(id)))
+    .map((g) => ({ g, pallets: pool.pallets.map((_, w) => g.productIds.reduce((a, id) => a + (held.get(id)?.[w] ?? 0), 0)) }));
   return (
     <div className="max-h-[28rem] overflow-auto">
       <table className="w-full text-xs" data-testid="warehouse-table">
         <thead className="sticky top-0 bg-surface">
           <tr className="border-b border-line text-muted">
             <th className="py-1.5 pr-3 text-left font-medium">Week</th>
-            {products.map((b) => (
-              <th key={b.productId} className="whitespace-nowrap px-2 py-1.5 text-right font-medium" title={b.productId}>
-                <span className="inline-flex items-center gap-1">
-                  <span className="inline-block h-2 w-2 rounded-sm" style={{ background: productColor(b.i) }} />
-                  {dataset.products[b.i] ? productName(dataset, dataset.products[b.i]) : b.productId}
-                </span>
-              </th>
+            {columns.map(({ g }) => (
+              <GroupHeader key={g.key} group={g} />
             ))}
             <th className="px-2 py-1.5 text-right font-medium">Total</th>
             <th className="py-1.5 pl-2 text-right font-medium">Full</th>
@@ -114,9 +122,9 @@ function WarehouseTable({ dataset, pool }: { dataset: Dataset; pool: PlanResult[
           {pool.pallets.map((total, w) => (
             <tr key={w} className="border-b border-line/50">
               <td className="tabular py-1 pr-3">{w + 1}</td>
-              {products.map((b) => (
-                <td key={b.productId} className="tabular px-2 py-1 text-right">
-                  {b.pallets[w] >= 0.05 ? fmt1(b.pallets[w]) : <span className="text-faint">–</span>}
+              {columns.map(({ g, pallets }) => (
+                <td key={g.key} className="tabular px-2 py-1 text-right">
+                  {pallets[w] >= 0.05 ? fmt1(pallets[w]) : <span className="text-faint">–</span>}
                 </td>
               ))}
               <td className="tabular px-2 py-1 text-right font-medium">{fmt1(total)}</td>
