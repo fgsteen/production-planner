@@ -33,6 +33,10 @@ back for the fixed-run solve and the MIP.
   (10.1 s before), and unmet demand is unchanged.
 - A product's shifts in one week are one block, as before. A block longer than the max gets
   clean-downs within the week, but their order within the week isn't planned.
+- **Reporting fix.** The MIP may switch on a run with no production that the next week continues:
+  the line is cleared at the end of one week and the campaign starts in the next. The plan used to
+  drop that large clear, because it read clears only from weeks with production. It is now reported
+  in the empty week (in the demo at 2×, B4: 16.4 large clears, not 12.4).
 - The warm start chooses runs without knowing the cap, so the final plan may pay clean-downs the
   runs could have avoided. The MIP can improve on it.
 

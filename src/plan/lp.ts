@@ -518,7 +518,24 @@ export function readPlan(model: PlanModel, ds: Dataset, weeks: number, status: s
         unmetUnits += v;
         if (v >= 0.5) unmet.push({ productId: col.productId, week: col.week, units: v });
         break;
-      case 'run':
+      case 'run': {
+        // A run without production that the next week continues: the MIP may clear the line at the
+        // end of this week and start the campaign in the next. Its large clear happens here.
+        if (v < 0.5 || (columns[`h${name.slice(1)}`] ?? 0) >= EPS) break;
+        const l = lc.get(col.machineId)!;
+        const starts = v - Math.min(v, columns[`c${name.slice(1)}`] ?? 0);
+        const clearHours = Math.max(0, l.large - l.small) * starts;
+        if (clearHours < EPS) break;
+        const mlc = lineClears.get(col.machineId)!;
+        mlc.large += starts;
+        mlc.largePerWeek[col.week - 1] += starts;
+        mlc.hours += clearHours;
+        const key = `${col.machineId}\u0000${col.productId}`;
+        totals.set(key, (totals.get(key) ?? 0) + clearHours / shiftH);
+        machineWeekShifts.get(col.machineId)![col.week - 1] += clearHours / shiftH;
+        weekShifts.push({ machineId: col.machineId, productId: col.productId, week: col.week, shifts: clearHours / shiftH });
+        break;
+      }
       case 'cont':
         break;
     }
