@@ -106,6 +106,12 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, 
     const conts = names.flatMap((n, i) => (n.startsWith('c_') ? [i] : []));
     const setCont = (ub: number) => conts.length && mdl.changeColsBounds({ kind: 'set', indices: Int32Array.from(conts) }, new Float64Array(conts.length), new Float64Array(conts.length).fill(ub));
     setCont(0);
+    // The max campaign length (R19, L_ columns ≤ Lmax) makes the LPs with cont much slower, so it is
+    // lifted until the runs are fixed; the fixed-run solve and the MIP keep it.
+    const lens = names.flatMap((n, i) => (n.startsWith('L_') ? [i] : []));
+    const lenSel = { kind: 'set' as const, indices: Int32Array.from(lens) };
+    const lenMax = lens.length ? Float64Array.from(mdl.getCols(lenSel).upper) : new Float64Array();
+    if (lens.length) mdl.changeColsBounds(lenSel, new Float64Array(lens.length), new Float64Array(lens.length).fill(Infinity));
     let relaxed: ArrayLike<number> = relax();
     const tolerance = unmet(relaxed) + 1e-3 * check.products.reduce((a, p) => a + p.yearlyDemand, 0);
     const relaxedHours = Float64Array.from(hoursOf, (h) => relaxed[h]);
@@ -152,6 +158,7 @@ export function solvePlan(highs: Highs, ds: Dataset, timeLimitS = TIME_LIMIT_S, 
     const fixed = Float64Array.from(hoursOf, (h, k) => (lower[k] === 1 && start[h] > 1e-6 ? 1 : 0));
     mdl.changeColsBounds(sel, fixed, fixed);
     if (alone.length) setAlone(fixed, true);
+    if (lens.length) mdl.changeColsBounds(lenSel, new Float64Array(lens.length), lenMax);
     mdl.clearSolver();
     mdl.run();
     start = Float64Array.from(mdl.getSolution().colValue);

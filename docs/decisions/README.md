@@ -36,3 +36,4 @@ What becomes easier/harder; follow-ups.
 | [0007](0007-line-clear-milp-and-warm-start.md) | Line clears as a weekly MILP, weighted priorities, warm-started solve | accepted (refined by 0008) |
 | [0008](0008-campaigns-across-weeks.md) | Campaigns across weeks (one large clear each), cycle-based warm start | accepted |
 | [0009](0009-fair-share-unmet-demand.md) | Fair-share unmet demand (worst share first, doubling slices), warm-start time budgets | accepted |
+| [0010](0010-max-campaign-length.md) | Max campaign length: forced clean-downs (same product may go on), length counted across weeks | accepted |

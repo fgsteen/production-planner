@@ -35,7 +35,7 @@ export function LineClearPanel({ dataset, plan, check }: { dataset: Dataset; pla
     <Panel
       title="Line clears per machine"
       testId="line-clear-panel"
-      hint="Large line clears start a campaign (a product change); small ones fall between lots of the same product. Hours are machine time lost to clearing. Share = clear hours ÷ planned machine time. Shifts per campaign = planned shifts ÷ large clears. Each cell of the strip is one ISO week; shaded weeks start a campaign, darker ones start more."
+      hint="Large line clears start a campaign: a product change, or a clean-down when a campaign reaches the max length. Small ones fall between lots of the same product. Hours are machine time lost to clearing. Share = clear hours ÷ planned machine time. Shifts per campaign = planned shifts ÷ large clears. Each cell of the strip is one ISO week; shaded weeks start a campaign, darker ones start more."
     >
       <div className="overflow-x-auto">
         <table className="w-full text-xs" data-testid="line-clear-table">

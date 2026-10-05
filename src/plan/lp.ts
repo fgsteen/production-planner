@@ -38,6 +38,14 @@
 //   Σ_w busy[m,w] ≤ U × available hours of m in the year
 //   unmet share (R64):  Σ_w short[p,w] = demand_p Σ_k g[p,k];   Σ_k g[p,k] ≤ F
 //
+// Max campaign length (R19, ADR 0010): len[p,m,w] ∈ [0, Lmax] is the campaign's machine time since
+// its last large clear, at the end of week w (Lmax = max campaign shifts × shift hours). A forced
+// clean-down, clean[p,m,w] ≥ 0 (counted continuously, like lots), costs a large line clear and
+// resets Lmax of length; the same product may then go on.
+//   len[w] ≥ (1+f) hours[w] − Lmax clean[w]
+//   len[w] ≥ (1+f) hours[w] + len[w−1] − Lmax clean[w] − Lmax (1 − cont[w])
+//   busy[m,w] gains (large − small) Σ_p clean[p,m,w]
+//
 //   minimise  FAIR·F + SHORT·Σ_p,k 2^k g[p,k] demand_p/Dᵤ + balance·U + lineClears·LC/LC₀ + transport·pallets/D
 //             + spare·Σ(1+f)hours/H₀ + HOLD·Σ pallet-weeks/D
 // Each goal is scaled to about 0–1: LC₀ is one large line clear per machine-week, D the yearly
@@ -191,6 +199,18 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
   const h = (p: number, m: number, w: number) => `h_${p}_${m}_${w}`;
   const r = (p: number, m: number, w: number) => `r_${p}_${m}_${w}`;
   const ct = (p: number, m: number, w: number) => `c_${p}_${m}_${w}`;
+  const cl = (p: number, m: number, w: number) => `e_${p}_${m}_${w}`;
+  const len = (p: number, m: number, w: number) => `L_${p}_${m}_${w}`;
+  /** Machine time a campaign may run before a forced large clear (R19); 0 = no limit on this machine. */
+  const maxCampaignHours = new Map(
+    ds.machines.map((m) => {
+      const l = lc.get(m.id)!;
+      const lmax = ds.settings.maxCampaignShifts * ds.settings.shiftHours;
+      const year = (machineHours.get(m.id) ?? []).reduce((a, b) => a + b, 0);
+      return [m.id, l.large > l.small && lmax > 0 && lmax < year ? lmax : 0];
+    }),
+  );
+  let campaignCols = 0;
   /** A run in week w can continue one from week w−1 if both weeks have machine time. */
   const canContinue = (machineId: Id, w: number) => w > 1 && avail(machineId, w) > 0 && avail(machineId, w - 1) > 0;
   const bounds: string[] = [];
@@ -220,6 +240,17 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
           cols.set(ct(i, j, w), { kind: 'cont', productId: c.productId, machineId: c.machineId, week: w });
           cost(ct(i, j, w), (-prio.lineClears * Math.max(0, l.large - l.small)) / LC0);
           bounds.push(` 0 <= ${ct(i, j, w)} <= 1`);
+        }
+        const lmax = maxCampaignHours.get(c.machineId)!;
+        if (lmax > 0) {
+          cost(cl(i, j, w), (prio.lineClears * (l.large - l.small)) / LC0 + 1e-5);
+          bounds.push(` 0 <= ${len(i, j, w)} <= ${num(lmax)}`);
+          rows.push(` len_${i}_${j}_${w}: + ${num(1 + l.overhead)} ${h(i, j, w)} - ${len(i, j, w)} - ${num(lmax)} ${cl(i, j, w)} <= 0`);
+          if (canContinue(c.machineId, w))
+            rows.push(
+              ` lenc_${i}_${j}_${w}: + ${num(1 + l.overhead)} ${h(i, j, w)} + ${len(i, j, w - 1)} - ${len(i, j, w)} - ${num(lmax)} ${cl(i, j, w)} + ${num(lmax)} ${ct(i, j, w)} <= ${num(lmax)}`,
+            );
+          campaignCols += 2;
         }
       }
     }
@@ -270,6 +301,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
         const terms = [`+ ${num(1 + l.overhead)} ${h(i, j, w)}`];
         if (avail(m.id, w) > 0 && l.large > l.small) terms.push(`+ ${num(l.large - l.small)} ${r(i, j, w)}`);
         if (canContinue(m.id, w) && l.large > l.small) terms.push(`- ${num(l.large - l.small)} ${ct(i, j, w)}`);
+        if (avail(m.id, w) > 0 && maxCampaignHours.get(m.id)! > 0) terms.push(`+ ${num(l.large - l.small)} ${cl(i, j, w)}`);
         return terms;
       });
     const yearly: string[] = [];
@@ -361,7 +393,7 @@ export function buildPlanLp(ds: Dataset, check: CapacityCheck): PlanModel {
   const lp = ['Minimize', ` obj: ${wrap(obj)}`, 'Subject To', ...rows.map(wrap), ...(bounds.length ? ['Bounds', ...bounds] : []), ...(binaries.length ? ['Binary', ...binaries.map((b) => ` ${b}`)] : []), 'End'].join(
     '\n',
   );
-  return { lp, cols, pools, truckLimits, columnCount: cols.size + drawCols + aloneCols + fairCols + (fairCols ? 2 : 1), rowCount: rows.length, binaryCount: binaries.length, campaignHours };
+  return { lp, cols, pools, truckLimits, columnCount: cols.size + drawCols + aloneCols + fairCols + campaignCols + (fairCols ? 2 : 1), rowCount: rows.length, binaryCount: binaries.length, campaignHours };
 }
 
 export interface WeekShifts {
@@ -456,7 +488,8 @@ export function readPlan(model: PlanModel, ds: Dataset, weeks: number, status: s
         // with a small one. Machine time matches the MILP (lots counted continuously); counts are
         // whole lots. A run continuing from last week starts no campaign.
         const l = lc.get(col.machineId)!;
-        const starts = 1 - Math.min(1, columns[`c${name.slice(1)}`] ?? 0);
+        // Forced clean-downs (R19) count as large line clears too.
+        const starts = 1 - Math.min(1, columns[`c${name.slice(1)}`] ?? 0) + (columns[`e${name.slice(1)}`] ?? 0);
         const clearHours = v * l.overhead + Math.max(0, l.large - l.small) * starts;
         const shifts = (v + clearHours) / shiftH;
         const mlc = lineClears.get(col.machineId)!;

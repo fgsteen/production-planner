@@ -108,6 +108,10 @@ export function AboutPage() {
             machine to itself that week. A week without machine time (e.g. holidays) ends a campaign.
           </li>
           <li>
+            <Term>Max campaign length</Term> (Master data → Settings): a campaign's shifts, counted over the weeks it runs through, may not exceed the
+            maximum. Past it, the machine gets a large line clear, and the same product may go on after it.
+          </li>
+          <li>
             <Term>Stock balance</Term> per product and storage pool: last week's stock + made or trucked in − trucked out − consumed = this week's stock.
             Initial stock is the stock at the start of week 1.
           </li>
@@ -181,7 +185,8 @@ export function AboutPage() {
             <Term>Storage is pooled</Term> per site and kind. A product's stock may split over the locations in a pool in any way.
           </li>
           <li>
-            <Term>Max campaign length</Term> (Master data → Settings) is not enforced yet.
+            <Term>Campaign length is counted per week:</Term> all of a product's shifts on a machine in a week count as one block. Forced clean-downs are
+            counted continuously, like lots.
           </li>
           <li>
             <Term>Fair share is approximate</Term> outside the worst-hit group: products on other overloaded machines are levelled to within a slice or two.

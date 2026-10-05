@@ -162,9 +162,29 @@ describe('plan MILP: line clears and priorities', () => {
 
   it('a campaign across weeks pays one large line clear (ADR 0008)', () => {
     const ds = tiny(1000);
-    const plan = solvePlan(highs, { ...ds, machines: [{ ...ds.machines[0], largeLineClearMin: 240 }], capabilities: ds.capabilities.slice(0, 1) });
+    const plan = solvePlan(highs, {
+      ...ds,
+      settings: { ...ds.settings, maxCampaignShifts: 1000 },
+      machines: [{ ...ds.machines[0], largeLineClearMin: 240 }],
+      capabilities: ds.capabilities.slice(0, 1),
+    });
     expect(plan.unmetUnits).toBeCloseTo(0);
     expect(plan.lineClears.find((l) => l.machineId === 'M1')!.large).toBeCloseTo(1);
+  });
+
+  it('a campaign longer than the max gets a forced large clear, and the product goes on (R19)', () => {
+    // 10 h a week for 52 weeks = 520 h of one product; max 5 shifts = 40 h → 1 start + 12 clean-downs.
+    const ds = tiny(1000);
+    const plan = solvePlan(highs, {
+      ...ds,
+      settings: { ...ds.settings, maxCampaignShifts: 5 },
+      machines: [{ ...ds.machines[0], largeLineClearMin: 240 }],
+      capabilities: ds.capabilities.slice(0, 1),
+    });
+    expect(plan.unmetUnits).toBeCloseTo(0);
+    const lc = plan.lineClears.find((l) => l.machineId === 'M1')!;
+    expect(lc.large).toBeCloseTo(13, 1);
+    expect(lc.hours).toBeCloseTo(13 * 4, 0);
   });
 
   it('only one product continues across a week boundary (ADR 0008)', () => {

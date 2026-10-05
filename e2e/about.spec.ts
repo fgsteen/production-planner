@@ -6,7 +6,7 @@ test('the About page explains the solver, constraints and assumptions (R50)', as
   await expect(page).toHaveURL(/#about$/);
   await expect(page.getByTestId('about-solver')).toContainText('HiGHS');
   await expect(page.getByTestId('about-solver')).toContainText('within 1 % of the optimum, or after 6 s');
-  await expect(page.getByTestId('about-constraints').locator('li')).toHaveCount(8);
+  await expect(page.getByTestId('about-constraints').locator('li')).toHaveCount(9);
   await expect(page.getByTestId('about-objective')).toContainText('Balanced load (8)');
   await expect(page.getByTestId('about-assumptions')).toContainText('No transit time');
   await page.screenshot({ path: 'test-results/screens/about.png', fullPage: true });
