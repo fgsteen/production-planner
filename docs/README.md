@@ -29,5 +29,7 @@ push to `main`. Data lives in each viewer's browser (localStorage); export JSON 
 | `src/store/` | Dataset reducer, JSON import/export, localStorage persistence, React context. |
 | `src/data/` | Master data page: inline-edit tables, export/import/reset. |
 | `src/overview/` | Overview screen and React Flow network map. |
+| `src/plan/` | Plan page and engine: MILP (`lp.ts`), warm-started solve (`solve.ts`), Web Worker, what limits the plan (`limits.ts`). |
+| `src/about/` | About page: how the plan is made (R50). |
 | `src/ui/` | Inline-edit cells, error boundary, palette/number formatting. Design tokens are in `src/index.css`. |
 | `e2e/` | Playwright tests. |

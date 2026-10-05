@@ -1,6 +1,6 @@
 # Next session
 
-_Written at the end of S09 (2026-10-04)._
+_Written at the end of S10 (2026-10-05)._
 
 ## Start with the plan
 Open by presenting the session plan (goal, in/out of scope, first steps, questions) and asking the
@@ -8,80 +8,68 @@ user what to add to the todo list, for this session or later (CLAUDE.md, user S0
 
 ## Where we are
 - **Live:** https://fgsteen.github.io/production-planner/. It redeploys on every push to `main`.
-- **Plan** (`src/plan/`; ADRs [0007](decisions/0007-line-clear-milp-and-warm-start.md),
-  [0008](decisions/0008-campaigns-across-weeks.md) and
-  [0009](decisions/0009-fair-share-unmet-demand.md)): a weekly MILP.
-  - **Line clears:** one large clear per campaign, which may span weeks.
-  - **Goals:** four priority weights: balance 8, line clears 4, transport 2, spare 1.
-  - **Unmet demand:** a fair share (R64, S09). The worst product's yearly share F comes first. Then
-    10 slices of each product's share, each costing twice the last.
-    - At 2× demand every demo product is 33–34 % short, 36 % of demand in total.
-    - Before S09: 24 % in total, with five products at 100 %.
-  - **Warm start:**
-    1. relaxation, then campaign cycles;
-    2. fix runs;
-    3. MIP.
-
-    The optional extra solves stop at 40 % / 60 % of the time limit (S09).
+- **Pages:** Overview, Master data, Demand, Plan and **About** (new in S10: the solver, model,
+  constraints, goals and assumptions).
+- **Plan page:**
+  - summary;
+  - **What limits the plan** (R39): machines, storage and lanes at their limit, ranked by the unmet
+    units they touch;
+  - unmet demand;
+  - shifts table;
+  - **Line clears per machine** (R65);
+  - weekly machine plan, warehouses, transport.
+  - "Group by" X/Y/Z works in every plan view (R44 done).
+- **Model** (ADRs 0007–0010):
+  - a weekly MILP;
+  - campaigns across weeks;
+  - fair-share unmet demand;
+  - **max campaign length** (R19, ADR 0010): past the max a forced large clear, and the same product
+    may go on. Clean-downs are continuous. The cap is lifted until the runs are fixed.
 - **Solve times** (`npm run measure:plan`, line clear weight 4):
 
   | Demand | Solve time | Large clears |
   | --- | --- | --- |
-  | 1× | 6.0 s | 629 |
-  | 1.3× | 6.4 s | 762 |
-  | 2× | 10.1 s | 592 |
+  | 1× | 6.0 s | 625 |
+  | 2× | 13.1 s | 601 |
 
-  - With `MEASURE_DEMAND`, the measure script also prints unmet % per product.
-- **Plan page:**
-  - an "Unmet demand" panel (only when demand is unmet): share, units and a 52-week strip per product;
-  - fully used machines are red in the shifts table.
-- **Validation (R66):** an SFG with a pre-SFG can't have a capability at the demand site.
-- **Open questions:** none open ([open-questions.md](open-questions.md) is empty).
-- **Tests:** `npm test` is green: 5 tooling tests, typecheck, 79 unit tests and 25 e2e tests.
+  - At 1.3×: not measured in S10.
+- **Tests:** `npm test` is green: 5 tooling tests, typecheck, 87 unit tests and 26 e2e tests.
+- **Open question:** fairness vs total units ([open-questions.md](open-questions.md)). The user
+  said keep strict for now.
 
 ## Known weak spots
-1. **Fairness costs units.** An equal share moves machine time to slow products, so at 2× demand
-   12 % more of total demand goes unmet. The user may want a middle way, e.g. a fairness weight.
-2. **Levelling is only exact for the worst group.** Products on a less-overloaded machine are
-   levelled to within a slice or two. Example: a fair 20/20 came out as 10/22.5 with a 4× rate gap.
-3. **The relax stage is a single LP.** At 2× demand it alone takes 5.6 s, beyond the 6 s target.
+1. **Solve time at 2×:** 13.1 s, well over the 6 s target. The relax LP alone is 5–6 s, and step 2
+   is about 5 s.
+2. **Clean-downs are continuous.** Reported large clears can be fractional (e.g. 16.4). The warm
+   start picks runs without the campaign cap.
+3. **Fairness costs units.** 36 % of demand is unmet at 2× against 24 % before R64. Levelling is
+   only exact for the worst group.
 4. **The MIP stage rarely improves the start**, and the gap shows as "not proven".
-5. **PNG export of the Overview map** leaves out the machine → store connector lines.
+5. **Group-by is per panel.** Each panel has its own selector; a page-wide one may be nicer.
 
-## Proposed goal for S10
-**Bottleneck view (R39): a ranked list of what limits the plan** (user S09: a ranked list, not
-shadow prices).
-- **Candidates to rank:**
-  - fully used machines (weeks at 100 %, and the share of the year);
-  - full storage pools (weeks at capacity);
-  - truck lanes at their limit (weeks maxed);
-  - unmet demand per product, with the machines that could make it.
-- **Order:** rank by impact, e.g. weeks binding × the units affected, or unmet units on the
-  machines involved. Read it straight from the `PlanResult` (no extra solve).
-- **If time is left:** R65, a line clear panel per machine (small and large counts, total hours).
-  `PlanResult.lineClears` already has the data.
+## Proposed goal for S11
+**Excel import/export (R60–R63):**
+- a template with dropdowns wherever the choices are fixed (e.g. factory location);
+- import with per-row errors;
+- export;
+- ExcelJS, recorded in an ADR.
+
+Alternative: solve-time work at 2× (weak spot 1), if the user prefers.
 
 ### First steps
-1. Sketch the ranking from `PlanResult`, as a pure function in `src/plan/` with unit tests.
-2. Add a "What limits the plan" panel (use `Panel`), near the summary.
-3. Add an e2e test at raised demand: the first entry is a machine at 100 %.
+1. ADR for ExcelJS (bundle size, lazy-load like HiGHS), sheet layout per master-data table.
+2. Export first (round-trip test: export → import gives the same dataset).
+3. Import with per-row errors shown on the Master data page.
 
 ### Questions for the user
-- **Fairness vs total:** keep a strict fair share, or add a "fairness" slider that trades the
-  equal share against total units met?
-- **Bottleneck list:** what should the top entry say? Examples: "A4 full in 38 weeks" or "A4 full;
-  P10 and P13 are 30 % short".
+- **Excel:** one workbook with a sheet per table, or one per area? Should demand be in the same
+  file?
+- **Group-by:** keep one selector per panel, or one for the whole Plan page?
+- **2× solve time:** is 13 s acceptable for overloaded what-ifs, or should S11 work on it first?
 
 ## Later sessions (rough order, to be confirmed with the user)
-- **R65:** a line clear panel per machine (user S09), if S10 doesn't get to it.
-- **R19:** a max campaign length, as a limit on consecutive weeks with `cont`.
-- **Group-by everywhere (rest of R44):** the weekly machine plan, transport and warehouse views.
-- **Excel (R60–R63):**
-  - a template with dropdowns wherever the choices are fixed, e.g. factory location (user S09);
-  - import with per-row errors;
-  - export;
-  - ExcelJS, recorded in an ADR.
+- **Excel (R60–R63)**, if not S11.
 - **Visualisation (R30, R33, R37, R38):** Sankey, utilisation heatmap.
-- **About page (R50, `#about`):** condensed from ADRs 0003, 0005, 0007, 0008 and 0009.
 - **Further features:** shift-level timeline (R34); compare plans (R25); transit time (much later,
   user S09).
+- **Fairness slider** (open question), if the user wants it.

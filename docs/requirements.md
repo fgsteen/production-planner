@@ -53,11 +53,11 @@ Terms: see the glossary in [domain.md](domain.md).
 | --- | --- | --- | --- | --- |
 | R30 | Load/utilisation per machine. | M | agreed | S01 |
 | R31 | Number of small/large line clears and total line clear time per machine. Columns in the shifts table (S07); line clear hours in the plan summary (S08). | M | done | S01 |
-| R65 | **Line clear panel** on the Plan page: per machine, the number of small and large line clears and their total hours (user, S09). Extends R31, which shows only columns in the shifts table. | M | agreed | S09 |
+| R65 | **Line clear panel** on the Plan page: per machine, the number of small and large line clears and their total hours (user, S09). Extends R31, which shows only columns in the shifts table. S10: "Line clears per machine" panel, with shifts per campaign and a week strip of campaign starts. | M | done | S09 |
 | R32 | Transport volume B → A in units and pallets. | M | done | S01 |
 | R37 | Stock level (pallets) per storage location per month vs capacity. Detailed by R46 (per week, with product mix). | S | agreed | S01 |
 | R38 | Trucks needed B → A per week/month vs allowed truck capacity. | M | done | S01 |
-| R39 | Show which constraints are the bottleneck (e.g. A in-factory storage full, trucks maxed out, machine capacity), and what relaxing them would gain. User, S09: a **ranked list of what limits the plan**, not shadow prices. User, S10: each entry names the limit and the products it leaves short ("A4 full in 38/52 weeks · P10, P13 short (30 %)"); rank by the unmet units linked to the limit, then by weeks binding. | S | agreed | S01 |
+| R39 | Show which constraints are the bottleneck (e.g. A in-factory storage full, trucks maxed out, machine capacity), and what relaxing them would gain. User, S09: a **ranked list of what limits the plan**, not shadow prices. User, S10: each entry names the limit and the products it leaves short ("A4 full in 38/52 weeks · P10, P13 short (30 %)"); rank by the unmet units linked to the limit, then by weeks binding. S10: "What limits the plan" panel on the Plan page. | S | done | S01 |
 | R33 | Flow diagram (Sankey) with numbers: product → machine → site → A. | M | agreed | S01 |
 | R34 | Shift-level timeline of the plan per machine. | S | idea | S01 |
 | R42 | Week-by-week plan per machine: for each machine and ISO week, which products run and how many shifts each, plus utilisation. | M | done | S04 |
@@ -85,4 +85,4 @@ Terms: see the glossary in [domain.md](domain.md).
 ## About
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
-| R50 | About page explaining the optimisation: the solver (HiGHS), how it runs in the browser, the model (variables, constraints, objective) and methods used (e.g. LP relaxation, branch and bound). Content from [ADR 0003](decisions/0003-planning-engine.md): MILP, HiGHS, CLSP; the model list (period, variables, constraints, objective, two levels, how HiGHS solves it); why not machine learning; why not an AI agent. Leave out the rest of the ADR (status, spike notes, consequences) (S04). User, S10: detail the solver and list the constraints and assumptions the model runs with. | M | agreed | S01 |
+| R50 | About page explaining the optimisation: the solver (HiGHS), how it runs in the browser, the model (variables, constraints, objective) and methods used (e.g. LP relaxation, branch and bound). Content from [ADR 0003](decisions/0003-planning-engine.md): MILP, HiGHS, CLSP; the model list (period, variables, constraints, objective, two levels, how HiGHS solves it); why not machine learning; why not an AI agent. Leave out the rest of the ADR (status, spike notes, consequences) (S04). User, S10: detail the solver and list the constraints and assumptions the model runs with. S10: About page (`#about`). | M | done | S01 |
