@@ -147,7 +147,9 @@ export function buildGraph(ds: Dataset, productColors: Map<string, string>): { n
       });
       if (!inbound) {
         for (const m of machines) {
-          edges.push({ id: `e-${m.id}-${store.id}`, source: `machine-${m.id}`, target: `store-${store.id}`, type: 'smoothstep' });
+          // An inline stroke, like the other edges: the PNG export (html-to-image) drops edges styled
+          // only by React Flow's stylesheet.
+          edges.push({ id: `e-${m.id}-${store.id}`, source: `machine-${m.id}`, target: `store-${store.id}`, type: 'smoothstep', style: { stroke: 'var(--edge)', strokeWidth: 1 } });
         }
       }
     }
