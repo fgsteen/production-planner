@@ -19,7 +19,10 @@ and [requirements.md](requirements.md) (what's done).
   - a lean log template;
   - `npm run test:quiet`;
   - [perf.md](perf.md);
-  - a Ctx/call column in STATS.
+  - a Ctx/call column in STATS;
+  - a 130k context limit per conversation, with a checkpoint and a fresh conversation
+    ([ADR 0012](decisions/0012-context-budget-per-conversation.md)). The status line shows the
+    size.
 
 ## Known weak spots
 1. **Solve time at 2×** is 13.1 s, against a 6 s target. The relax LP alone takes 5–6 s and

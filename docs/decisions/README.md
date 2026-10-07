@@ -38,3 +38,4 @@ What becomes easier/harder; follow-ups.
 | [0009](0009-fair-share-unmet-demand.md) | Fair-share unmet demand (worst share first, doubling slices), warm-start time budgets | accepted |
 | [0010](0010-max-campaign-length.md) | Max campaign length: forced clean-downs (same product may go on), length counted across weeks | accepted |
 | [0011](0011-session-skills-and-lean-docs.md) | Session protocol as project skills, lean session docs, token hygiene | accepted |
+| [0012](0012-context-budget-per-conversation.md) | Context budget per conversation: checkpoint at 130k, resume fresh | accepted |

@@ -46,6 +46,14 @@ export function parseTimestamps(jsonlText) {
   return out;
 }
 
+/** Context size (input + cache read + cache write) of the most recent call, or 0. */
+export function latestContext(records) {
+  let last = null;
+  for (const r of records) if (!last || r.timestamp > last.timestamp) last = r;
+  const u = last?.usage ?? {};
+  return (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+}
+
 /** Sum usage of records inside [startMs, endMs], deduped by id, split per model. */
 export function summarizeUsage(records, startMs, endMs) {
   const seen = new Set();
@@ -142,3 +150,6 @@ export function fmtTokens(n) {
 export function projectSlug(cwd) {
   return cwd.replace(/[^A-Za-z0-9]/g, '-');
 }
+
+/** Context per call at which to checkpoint and resume in a fresh conversation (ADR 0012). */
+export const CONTEXT_LIMIT = 130_000;

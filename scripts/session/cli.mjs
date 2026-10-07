@@ -17,6 +17,8 @@ import {
   avgContext,
   fmtTokens,
   lastActivity,
+  CONTEXT_LIMIT,
+  latestContext,
   linesInCwd,
   longestGap,
   parseTimestamps,
@@ -115,6 +117,7 @@ function measure(startIso, endMs = Date.now()) {
   return {
     lastActivityMs: lastActivity(stamps, startMs, endMs),
     gap: longestGap(stamps, startMs, endMs),
+    contextNow: latestContext(records.filter((r) => Date.parse(r.timestamp) <= endMs)),
     wallMinutes: Math.round((endMs - startMs) / 60_000),
     activeMinutes: activeMinutes(stamps, startMs, endMs),
     tokens: { ...total, total: totalTokens(total) },
@@ -224,6 +227,9 @@ function cmdStatus() {
   if (!open) return console.log('No open session.');
   const m = measure(open.start);
   console.log(`${open.id} — ${open.goal}\n${statsBlock(m)}`);
+  console.log(`- **Context now:** ${fmtTokens(m.contextNow)} (checkpoint at ${fmtTokens(CONTEXT_LIMIT)})`);
+  if (m.contextNow >= CONTEXT_LIMIT)
+    console.log('\n🧳 Context over budget — finish the step, write a Checkpoint, resume in a fresh conversation.');
   if (m.wallMinutes >= 50) console.log('\n⏰ ~1h budget nearly used — start wrapping up.');
 }
 
@@ -233,7 +239,7 @@ function cmdEnd(args) {
   const at = takeAt(args);
   const endMs = at ? Date.parse(at) : Date.now();
   const m = measure(open.start, endMs);
-  const { lastActivityMs, gap, ...measured } = m;
+  const { lastActivityMs, gap, contextNow, ...measured } = m;
   const entry = { id: open.id, goal: open.goal, start: open.start, end: new Date(endMs).toISOString(), ...measured };
   // A long pause (S10: 441 min wall, 30 active) makes wall time misleading; say so in STATS.
   if (gap.minutes > IDLE_NOTE_MINUTES) {

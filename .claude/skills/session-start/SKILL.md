@@ -1,9 +1,13 @@
 ---
 name: session-start
-description: Start a numbered work session in production-planner. Use when the user says to start or begin the (next) session.
+description: Start or resume a numbered work session in production-planner. Use when the user says to start, begin or resume the (next) session.
 ---
 
 # Start a session
+
+**Resume first.** If `npm run session:status` shows an open session, don't start a new one. Read
+the `## Checkpoint` in its `docs/sessions/SNN.md`, then summarise it in ≤ 5 lines and carry on
+with "Next". Do this even after a fresh conversation began at the context limit (ADR 0012).
 
 1. **Read, don't explore.** Read `docs/NEXT_SESSION.md` and `docs/open-questions.md`. Open other
    docs or code only if the plan depends on them.

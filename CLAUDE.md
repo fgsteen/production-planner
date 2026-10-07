@@ -1,10 +1,12 @@
 # Production Planner — working agreement
 
 A web-based production planner, built in short numbered sessions, each with one agreed goal.
-Docs are Markdown under `docs/`. Start at [docs/README.md](docs/README.md).
+Docs are Markdown under `docs/`. Start at [docs/README.md](docs/README.md). Open conversations
+in this folder, not another project's: CLAUDE.md, memory and skills load from the folder a
+conversation was opened in.
 
 ## Sessions
-- **Start:** `/session-start`. **End:** `/session-end`. The steps are in `.claude/skills/`.
+- **Start or resume:** `/session-start`. **End:** `/session-end`. The steps are in `.claude/skills/`.
   Check `npm run session:status` now and then.
 - **Scope:** one goal plus an ordered stretch list, agreed at the start. New ideas go to "Later"
   in `docs/NEXT_SESSION.md` unless the user OKs adding them.
@@ -19,6 +21,10 @@ Docs are Markdown under `docs/`. Start at [docs/README.md](docs/README.md).
   Obsidian vault.
 
 ## Keep context small (tokens ≈ calls × context per call)
+- **Limit: 130k per conversation** (ADR 0012). The status line and `session:status` show the size.
+  At the limit, finish the step and commit. Then write a `## Checkpoint` in the session log,
+  commit it, and ask the user to open a fresh conversation in this folder and run
+  `/session-start` to resume.
 - Use `npm run test:quiet` mid-session. Grep or `sed -n` for the lines you need; don't dump
   whole files or logs.
 - In the browser, prefer `read_page`/`get_page_text`. Take screenshots at `scale: 0.5` unless

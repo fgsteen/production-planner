@@ -5,6 +5,7 @@ import {
   avgContext,
   fmtTokens,
   lastActivity,
+  latestContext,
   linesInCwd,
   longestGap,
   parseUsageRecords,
@@ -90,4 +91,12 @@ test('linesInCwd keeps lines from the project folder in either path style', () =
   ].join('\n');
   const kept = linesInCwd(text, 'C:\\Users\\a\\proj').split('\n').map((l) => JSON.parse(l).n);
   assert.deepEqual(kept, [1, 2]);
+});
+
+test('latestContext reads the most recent call', () => {
+  const recs = parseUsageRecords(
+    [line('m1', '2026-10-04T10:00:00Z', U), line('m2', '2026-10-04T11:00:00Z', { ...U, cache_read_input_tokens: 5000 })].join('\n'),
+  );
+  assert.equal(latestContext(recs), 5102);
+  assert.equal(latestContext([]), 0);
 });

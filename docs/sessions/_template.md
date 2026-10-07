@@ -18,6 +18,9 @@
 ## Found
 <!-- Bugs, surprises, measurements (solve times also go in ../perf.md). -->
 
+## Checkpoint
+<!-- Only when the context limit is hit (ADR 0012): done / next / open decisions / uncommitted, ≤ 10 lines. Overwrite at each checkpoint. -->
+
 ## Outcome
 <!-- Goal and stretch done vs. not, and why. `npm run test:quiet` result. Whole log ≤ 30 lines. -->
 
