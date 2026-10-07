@@ -95,6 +95,38 @@ export function lastActivity(timestamps, startMs, endMs) {
   return last;
 }
 
+/** Longest gap between consecutive timestamps in [startMs, endMs]: { minutes, fromMs, toMs }. */
+export function longestGap(timestamps, startMs, endMs) {
+  const ts = timestamps
+    .map((t) => Date.parse(t))
+    .filter((t) => t >= startMs && t <= endMs)
+    .sort((a, b) => a - b);
+  let best = { minutes: 0, fromMs: null, toMs: null };
+  for (let i = 1; i < ts.length; i++) {
+    const minutes = (ts[i] - ts[i - 1]) / 60_000;
+    if (minutes > best.minutes) best = { minutes, fromMs: ts[i - 1], toMs: ts[i] };
+  }
+  return best;
+}
+
+const normPath = (p) =>
+  p.replace(/\\/g, '/').replace(/^\/([a-z])\//i, '$1:/').toLowerCase().replace(/\/+$/, '');
+
+/**
+ * Keep only transcript lines whose `cwd` is `root`. Used for conversations opened in another
+ * project folder that worked in this one (S10 ran from a conversation opened in `struktur`).
+ */
+export function linesInCwd(jsonlText, root) {
+  const want = normPath(root);
+  return jsonlText
+    .split(/\r?\n/)
+    .filter((line) => {
+      const m = line.match(/"cwd":"((?:[^"\\]|\\.)*)"/);
+      return m && normPath(JSON.parse(`"${m[1]}"`)) === want;
+    })
+    .join('\n');
+}
+
 /** Average context per model call (input + cache read + cache write), the main driver of cost. */
 export function avgContext(t) {
   return t.calls ? Math.round((t.input + t.cacheRead + t.cacheWrite) / t.calls) : 0;

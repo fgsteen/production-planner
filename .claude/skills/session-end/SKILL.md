@@ -27,7 +27,6 @@ Do the steps in order. Keep every doc short and say each thing in one place.
    - **Later:** the todo list, in rough order.
 
    The date at the top is the session's date.
-6. **Close.** Run `npm run session:end`. If it says the last activity was long ago, use the
-   `--at <iso>` it prints, so wall time reflects the work. It stages only `docs`, `CLAUDE.md`
-   and `.claude/skills`. Commit anything else first.
+6. **Close.** Run `npm run session:end`. It notes long pauses in STATS by itself. It stages only
+   `docs`, `CLAUDE.md` and `.claude/skills`, so commit anything else first.
 7. **Report** the outcome, the tests and the stats to the user in ≤ 10 lines.

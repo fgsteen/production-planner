@@ -29,8 +29,10 @@ The user is also considering adopting skills written by others.
 - **Tooling:**
   - `npm run test:quiet` for mid-session runs;
   - STATS shows context per call;
-  - `session:end` refuses an end more than 30 min after the last activity unless given
-    `--at`/`--now`, and stages only `docs`, `CLAUDE.md` and `.claude/skills`.
+  - `session:end` notes any pause over 30 min in STATS, and stages only `docs`, `CLAUDE.md`
+    and `.claude/skills`;
+  - usage is also read from conversations opened in another folder, using the lines whose
+    `cwd` is this repo.
 - **Outside skills:** adopted one by one after reading them. Each is copied into
   `.claude/skills/` (reviewable, versioned with the repo) and recorded in an ADR. Whole plugin
   bundles are avoided: every installed skill's description, and any session-start hook, costs
@@ -44,8 +46,8 @@ The user is also considering adopting skills written by others.
   and end.
 - **Easy to compare:** the Ctx/call column shows whether this works.
 - **Two log formats:** S01–S10 keep the old one, and S11 onwards use the new one.
-- **Transcripts can disappear:** S10's transcript was no longer on disk two days later. Stats
-  must therefore be measured at `session:end`; they can't be redone later.
+- **Open the right folder:** a conversation's transcript is stored under the folder it was
+  opened in. S10 ran from one opened in `struktur`; the tooling now finds such lines by `cwd`.
 
 ## Alternatives considered
 - **Install a large skill bundle** (e.g. a community "agent protocols" plugin with 25 skills, 9

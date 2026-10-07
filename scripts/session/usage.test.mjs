@@ -5,6 +5,8 @@ import {
   avgContext,
   fmtTokens,
   lastActivity,
+  linesInCwd,
+  longestGap,
   parseUsageRecords,
   projectSlug,
   summarizeUsage,
@@ -70,4 +72,22 @@ test('lastActivity returns the latest stamp inside the window', () => {
 test('avgContext divides all input-side tokens by calls', () => {
   assert.equal(avgContext({ input: 2, cacheRead: 1000, cacheWrite: 98, output: 50, calls: 2 }), 550);
   assert.equal(avgContext({ input: 0, cacheRead: 0, cacheWrite: 0, output: 0, calls: 0 }), 0);
+});
+
+test('longestGap finds the biggest idle stretch', () => {
+  const ts = ['2026-10-04T10:00:00Z', '2026-10-04T10:05:00Z', '2026-10-04T12:05:00Z', '2026-10-04T12:06:00Z'];
+  const g = longestGap(ts, 0, Infinity);
+  assert.equal(g.minutes, 120);
+  assert.equal(g.fromMs, Date.parse('2026-10-04T10:05:00Z'));
+});
+
+test('linesInCwd keeps lines from the project folder in either path style', () => {
+  const text = [
+    JSON.stringify({ cwd: 'C:\\Users\\a\\proj', n: 1 }),
+    JSON.stringify({ cwd: '/c/Users/a/proj', n: 2 }),
+    JSON.stringify({ cwd: 'C:\\Users\\a\\other', n: 3 }),
+    JSON.stringify({ n: 4 }),
+  ].join('\n');
+  const kept = linesInCwd(text, 'C:\\Users\\a\\proj').split('\n').map((l) => JSON.parse(l).n);
+  assert.deepEqual(kept, [1, 2]);
 });

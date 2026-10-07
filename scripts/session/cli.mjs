@@ -4,7 +4,7 @@
 //
 //   npm run session:start -- "Goal text" [--at 2026-10-04T16:07:55Z]
 //   npm run session:status
-//   npm run session:end [-- --at <iso> | --now]
+//   npm run session:end [-- --at <iso>]
 //   npm run session:stats
 
 import { execFileSync } from 'node:child_process';
@@ -17,6 +17,8 @@ import {
   avgContext,
   fmtTokens,
   lastActivity,
+  linesInCwd,
+  longestGap,
   parseTimestamps,
   parseUsageRecords,
   projectSlug,
@@ -29,7 +31,7 @@ const SESSIONS_DIR = path.join(ROOT, 'docs', 'sessions');
 const STATS_JSON = path.join(SESSIONS_DIR, 'stats.json');
 const STATS_MD = path.join(SESSIONS_DIR, 'STATS.md');
 const TRAILER = '\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>';
-const STALE_MINUTES = 30;
+const IDLE_NOTE_MINUTES = 30;
 // Paths the end commit may stage. Never `git add -A`: the repo is also an Obsidian vault.
 const END_PATHS = ['docs', 'CLAUDE.md', '.claude/skills'];
 const SUBJECT_RE = /^session\((S\d+)\): (start|end)\b(?: — (.*))?$/;
@@ -76,20 +78,28 @@ function nextId() {
 
 // ---------- transcripts ----------
 
-function transcriptFiles(sinceMs) {
-  const dir =
-    process.env.CLAUDE_TRANSCRIPTS_DIR ??
-    path.join(os.homedir(), '.claude', 'projects', projectSlug(ROOT));
-  if (!fs.existsSync(dir)) return [];
+// Transcripts live under ~/.claude/projects/<slug of the folder the conversation was opened in>.
+// This project's folder is read whole; other folders only for lines whose cwd is this repo.
+function transcripts(sinceMs) {
+  const base = process.env.CLAUDE_TRANSCRIPTS_DIR ?? path.join(os.homedir(), '.claude', 'projects');
+  const own = process.env.CLAUDE_TRANSCRIPTS_DIR ? base : path.join(base, projectSlug(ROOT));
   const out = [];
-  const walk = (d) => {
+  const walk = (d, filter) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith('.jsonl') && fs.statSync(p).mtimeMs >= sinceMs) out.push(p);
+      if (e.isDirectory()) walk(p, filter);
+      else if (e.name.endsWith('.jsonl') && fs.statSync(p).mtimeMs >= sinceMs) {
+        const text = fs.readFileSync(p, 'utf8');
+        out.push(filter ? linesInCwd(text, ROOT) : text);
+      }
     }
   };
-  walk(dir);
+  if (fs.existsSync(own)) walk(own, false);
+  if (!process.env.CLAUDE_TRANSCRIPTS_DIR && fs.existsSync(base)) {
+    for (const e of fs.readdirSync(base, { withFileTypes: true })) {
+      if (e.isDirectory() && e.name !== projectSlug(ROOT)) walk(path.join(base, e.name), true);
+    }
+  }
   return out;
 }
 
@@ -97,14 +107,14 @@ function measure(startIso, endMs = Date.now()) {
   const startMs = Date.parse(startIso);
   const records = [];
   const stamps = [];
-  for (const f of transcriptFiles(startMs)) {
-    const text = fs.readFileSync(f, 'utf8');
+  for (const text of transcripts(startMs)) {
     records.push(...parseUsageRecords(text));
     stamps.push(...parseTimestamps(text));
   }
   const { total, byModel } = summarizeUsage(records, startMs, endMs);
   return {
     lastActivityMs: lastActivity(stamps, startMs, endMs),
+    gap: longestGap(stamps, startMs, endMs),
     wallMinutes: Math.round((endMs - startMs) / 60_000),
     activeMinutes: activeMinutes(stamps, startMs, endMs),
     tokens: { ...total, total: totalTokens(total) },
@@ -223,21 +233,14 @@ function cmdEnd(args) {
   const at = takeAt(args);
   const endMs = at ? Date.parse(at) : Date.now();
   const m = measure(open.start, endMs);
-  // An end long after the last activity inflates wall time (S10: 441 min wall, 30 active).
-  const idle = m.lastActivityMs === null ? 0 : (endMs - m.lastActivityMs) / 60_000;
-  if (!at && !args.includes('--now') && idle > STALE_MINUTES) {
-    const last = new Date(m.lastActivityMs).toISOString();
-    die(
-      `Last activity was ${Math.round(idle)} min ago (${last}).
-` +
-        `End at that time:  npm run session:end -- --at ${last}
-` +
-        `Or end now anyway: npm run session:end -- --now`,
-    );
-  }
-  const { lastActivityMs, ...measured } = m;
+  const { lastActivityMs, gap, ...measured } = m;
   const entry = { id: open.id, goal: open.goal, start: open.start, end: new Date(endMs).toISOString(), ...measured };
-
+  // A long pause (S10: 441 min wall, 30 active) makes wall time misleading; say so in STATS.
+  if (gap.minutes > IDLE_NOTE_MINUTES) {
+    const hhmm = (ms) => new Date(ms).toISOString().slice(11, 16);
+    entry.note = `includes a ${Math.round(gap.minutes)}-min pause (${hhmm(gap.fromMs)}–${hhmm(gap.toMs)} UTC); active time is the real figure.`;
+    console.log(`Note: ${entry.note}`);
+  }
   const stats = readStats().filter((s) => s.id !== open.id);
   stats.push(entry);
   fs.writeFileSync(STATS_JSON, JSON.stringify(stats, null, 2) + '\n');
