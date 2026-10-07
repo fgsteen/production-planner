@@ -7,10 +7,12 @@
 | [domain.md](domain.md) | Domain model: sites, machines, products, capabilities. |
 | [requirements.md](requirements.md) | Functions/features with priority and status. |
 | [open-questions.md](open-questions.md) | Questions waiting for a decision. |
+| [perf.md](perf.md) | Plan solve times per session. |
 | [decisions/](decisions/) | Architecture/design decision records (ADRs). |
 | [sessions/](sessions/) | One log per session + [STATS.md](sessions/STATS.md) (time & tokens). |
 
-Working agreement for Claude: [../CLAUDE.md](../CLAUDE.md).
+Working agreement for Claude: [../CLAUDE.md](../CLAUDE.md). Session protocol: the
+`/session-start` and `/session-end` skills in [../.claude/skills/](../.claude/skills/).
 
 ## Live app
 https://fgsteen.github.io/production-planner/ — deployed by `.github/workflows/pages.yml` on every
@@ -20,6 +22,7 @@ push to `main`. Data lives in each viewer's browser (localStorage); export JSON 
 - `npm install`, then `npx playwright install chromium` (once).
 - `npm run dev`: app at http://localhost:5173.
 - `npm test`: session tooling tests, typecheck, unit tests (Vitest) and e2e tests (Playwright).
+  `npm run test:quiet` runs the same with short output.
   The e2e run writes screenshots to `test-results/screens/`.
 
 ## Code map

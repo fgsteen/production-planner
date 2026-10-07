@@ -1,6 +1,7 @@
 # Requirements
 
 Priority: **M** must · **S** should · **C** could. Status: idea → agreed → building → done.
+Source: the session in which the requirement was agreed (ideas raised between sessions count for the next one).
 Terms: see the glossary in [domain.md](domain.md).
 
 ## Master data
@@ -35,8 +36,8 @@ Terms: see the glossary in [domain.md](domain.md).
 | R20 | Input a yearly forecast: required quantity per product, in units. | M | done | S01 |
 | R26 | Optional **per-week** requirement per product (ISO weeks; pinned weeks, the rest spread by A's open days — S04/S05, ADR 0004/0005). Demand is not even through the year; prevents oversized campaigns. | M | done | S01 |
 | R27 | Producing ahead of demand is allowed, limited only by storage capacity (pallets) per location. | M | done | S01 |
-| R47 | **Pre-SFG products:** regular products (X-Y-Z) flagged pre-SFG, made at A or B. An SFG may use one pre-SFG, 1:1, consumed in the same week where the SFG is made (only B in the demo). Pre-SFGs have no demand of their own and share the B warehouse (S07, ADR 0007). | M | done | after S06 |
-| R48 | Truck lane A → B for pre-SFG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. Demo: 3 trucks × 30 pallets, weekdays (S07). | M | done | after S06 |
+| R47 | **Pre-SFG products:** regular products (X-Y-Z) flagged pre-SFG, made at A or B. An SFG may use one pre-SFG, 1:1, consumed in the same week where the SFG is made (only B in the demo). Pre-SFGs have no demand of their own and share the B warehouse (S07, ADR 0007). | M | done | S07 |
+| R48 | Truck lane A → B for pre-SFG products: its own max trucks per week, pallets per truck and weekend/holiday toggle, edited like the B → A lane; shown in the transport breakdown. Demo: 3 trucks × 30 pallets, weekdays (S07). | M | done | S07 |
 | R29 | Transport B → A limited by truck frequency × size; output from B waits in the B warehouse. Weekly cap (S05, ADR 0005). | M | done | S01 |
 | R19 | Respect max campaign length. S10 ([ADR 0010](decisions/0010-max-campaign-length.md)): past the max a large line clear (clean-down), and the same product may go on; the length counts all shifts over the weeks a campaign continues through (user). | M | done | S01 |
 | R64 | **Unmet demand as a fair share:** when demand exceeds capacity, every product is short by about the same percentage, rather than whole slow products going unmet (user, S08). Same percentage **over the year**, not per week (S09). Built in S09 ([ADR 0009](decisions/0009-fair-share-unmet-demand.md)): worst share levelled exactly, other overloaded machines approximately; Plan page "Unmet demand" panel. | M | done | S08 |
@@ -65,7 +66,7 @@ Terms: see the glossary in [domain.md](domain.md).
 | R35 | Flag forecast that cannot be fulfilled (insufficient capacity). Solver-free check done in S04 (shortfall, peak weeks, estimated machine load); the solver will refine it. | S | building | S01 |
 | R36 | High visual quality: polished charts and diagrams are a core goal, not decoration. | M | agreed | S01 |
 | R44 | Scale to 20–50 products: tables and charts (demand grid, plan tables, weekly views) stay usable without wide sideways scrolling. Group or filter by characteristic X/Y/Z, or expand and collapse groups. S07: "Group by" product/X/Y/Z in the demand grid (read-only sums) and the shifts table. S10: also in the weekly machine plan, warehouse and transport views (a selector per panel). | M | done | S05 |
-| R46 | Warehouse panel on the Plan page: one section per storage location, showing per ISO week the stock in pallets by product (the product mix) against its capacity. Stacked bars per week with a capacity line, and a toggle to a week × product table, like the weekly machine plan (R42). Built in S07 (locations pooled as in the MILP). | M | done | after S06 |
+| R46 | Warehouse panel on the Plan page: one section per storage location, showing per ISO week the stock in pallets by product (the product mix) against its capacity. Stacked bars per week with a capacity line, and a toggle to a week × product table, like the weekly machine plan (R42). Built in S07 (locations pooled as in the MILP). | M | done | S07 |
 | R45 | Every panel with a chart or table has a small icon to download it as a PNG for presentations (2× resolution, in the page's current light or dark theme: user, after S08). Wide tables export whole; panel controls are left out. | M | done | S05 |
 
 ## Excel

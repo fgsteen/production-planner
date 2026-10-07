@@ -1,6 +1,6 @@
 # 0001 — Session-based workflow with git-timed sessions
 
-- **Status:** accepted
+- **Status:** accepted (refined by [0011](0011-session-skills-and-lean-docs.md))
 - **Date:** 2026-10-04
 - **Session:** S01
 

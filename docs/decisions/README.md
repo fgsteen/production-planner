@@ -27,7 +27,7 @@ What becomes easier/harder; follow-ups.
 
 | # | Title | Status |
 | --- | --- | --- |
-| [0001](0001-session-workflow.md) | Session-based workflow with git-timed sessions | accepted |
+| [0001](0001-session-workflow.md) | Session-based workflow with git-timed sessions | accepted (refined by 0011) |
 | [0002](0002-stack.md) | Tech stack: client-only TypeScript app, static hosting | accepted |
 | [0003](0003-planning-engine.md) | Planning engine: MILP optimisation (lot-sizing), not ML or an agent | accepted |
 | [0004](0004-weekly-demand-iso-weeks.md) | Weekly time grid (ISO weeks) and demand as a yearly total with pinned weeks | accepted |
@@ -37,3 +37,4 @@ What becomes easier/harder; follow-ups.
 | [0008](0008-campaigns-across-weeks.md) | Campaigns across weeks (one large clear each), cycle-based warm start | accepted |
 | [0009](0009-fair-share-unmet-demand.md) | Fair-share unmet demand (worst share first, doubling slices), warm-start time budgets | accepted |
 | [0010](0010-max-campaign-length.md) | Max campaign length: forced clean-downs (same product may go on), length counted across weeks | accepted |
+| [0011](0011-session-skills-and-lean-docs.md) | Session protocol as project skills, lean session docs, token hygiene | accepted |
