@@ -247,6 +247,7 @@
         "output": 88104,
         "calls": 113
       }
-    }
+    },
+    "note": "session:end ran ~7 h after the work stopped; active time is the real figure. The transcript is no longer on disk, so it cannot be re-measured."
   }
 ]

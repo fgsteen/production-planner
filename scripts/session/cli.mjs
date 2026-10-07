@@ -4,7 +4,7 @@
 //
 //   npm run session:start -- "Goal text" [--at 2026-10-04T16:07:55Z]
 //   npm run session:status
-//   npm run session:end
+//   npm run session:end [-- --at <iso> | --now]
 //   npm run session:stats
 
 import { execFileSync } from 'node:child_process';
@@ -14,7 +14,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   activeMinutes,
+  avgContext,
   fmtTokens,
+  lastActivity,
   parseTimestamps,
   parseUsageRecords,
   projectSlug,
@@ -27,6 +29,9 @@ const SESSIONS_DIR = path.join(ROOT, 'docs', 'sessions');
 const STATS_JSON = path.join(SESSIONS_DIR, 'stats.json');
 const STATS_MD = path.join(SESSIONS_DIR, 'STATS.md');
 const TRAILER = '\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>';
+const STALE_MINUTES = 30;
+// Paths the end commit may stage. Never `git add -A`: the repo is also an Obsidian vault.
+const END_PATHS = ['docs', 'CLAUDE.md', '.claude/skills'];
 const SUBJECT_RE = /^session\((S\d+)\): (start|end)\b(?: — (.*))?$/;
 
 const git = (args, env) =>
@@ -99,6 +104,7 @@ function measure(startIso, endMs = Date.now()) {
   }
   const { total, byModel } = summarizeUsage(records, startMs, endMs);
   return {
+    lastActivityMs: lastActivity(stamps, startMs, endMs),
     wallMinutes: Math.round((endMs - startMs) / 60_000),
     activeMinutes: activeMinutes(stamps, startMs, endMs),
     tokens: { ...total, total: totalTokens(total) },
@@ -121,17 +127,19 @@ function writeStatsMd(stats) {
     '- **Wall** = time between the git start/end commits.',
     '- **Active** = transcript activity, excluding idle gaps > 10 min.',
     '- **Tokens** = all model calls in this project during the session (incl. subagents). Cache reads are cheap; output is the expensive part.',
+    '- **Ctx/call** = average context per call. Total ≈ calls × ctx/call, so both are worth keeping down.',
     '',
-    row(['Session', 'Date', 'Goal', 'Wall', 'Active', 'Calls', 'Input', 'Cache write', 'Cache read', 'Output', 'Total']),
-    row(['---', '---', '---', '--:', '--:', '--:', '--:', '--:', '--:', '--:', '--:']),
+    row(['Session', 'Date', 'Goal', 'Wall', 'Active', 'Calls', 'Ctx/call', 'Input', 'Cache write', 'Cache read', 'Output', 'Total']),
+    row(['---', '---', '---', '--:', '--:', '--:', '--:', '--:', '--:', '--:', '--:', '--:']),
     ...stats.map((s) =>
       row([
         `[${s.id}](${s.id}.md)`,
         s.start.slice(0, 10),
         s.goal ?? '',
-        `${s.wallMinutes} min`,
+        `${s.wallMinutes} min${s.note ? ' †' : ''}`,
         `${s.activeMinutes} min`,
         s.tokens.calls,
+        fmtTokens(avgContext(s.tokens)),
         fmtTokens(s.tokens.input),
         fmtTokens(s.tokens.cacheWrite),
         fmtTokens(s.tokens.cacheRead),
@@ -146,6 +154,7 @@ function writeStatsMd(stats) {
       `${sum((s) => s.wallMinutes)} min`,
       `${sum((s) => s.activeMinutes)} min`,
       sum((s) => s.tokens.calls),
+      '',
       fmtTokens(sum((s) => s.tokens.input)),
       fmtTokens(sum((s) => s.tokens.cacheWrite)),
       fmtTokens(sum((s) => s.tokens.cacheRead)),
@@ -153,6 +162,8 @@ function writeStatsMd(stats) {
       fmtTokens(sum((s) => s.tokens.total)),
     ]),
     '',
+    ...stats.filter((s) => s.note).map((s) => `† ${s.id}: ${s.note}
+`),
   ];
   fs.writeFileSync(STATS_MD, lines.join('\n'));
 }
@@ -165,16 +176,20 @@ function statsBlock(m) {
   return [
     `- **Wall time:** ${m.wallMinutes} min (measured from the git start commit)`,
     `- **Active time:** ${m.activeMinutes} min`,
-    `- **Tokens:** ${fmtTokens(t.total)} total — input ${fmtTokens(t.input)}, cache write ${fmtTokens(t.cacheWrite)}, cache read ${fmtTokens(t.cacheRead)}, output ${fmtTokens(t.output)} (${t.calls} calls)`,
+    `- **Tokens:** ${fmtTokens(t.total)} total — input ${fmtTokens(t.input)}, cache write ${fmtTokens(t.cacheWrite)}, cache read ${fmtTokens(t.cacheRead)}, output ${fmtTokens(t.output)} (${t.calls} calls, ${fmtTokens(avgContext(t))} context per call)`,
     `- **Models:** ${models || 'n/a'}`,
   ].join('\n');
 }
 
 // ---------- commands ----------
 
+function takeAt(args) {
+  const i = args.indexOf('--at');
+  return i >= 0 ? new Date(args.splice(i, 2)[1]).toISOString() : null;
+}
+
 function cmdStart(args) {
-  const atIdx = args.indexOf('--at');
-  const at = atIdx >= 0 ? new Date(args.splice(atIdx, 2)[1]).toISOString() : null;
+  const at = takeAt(args);
   const goal = args.join(' ').trim();
   if (!goal) die('Usage: npm run session:start -- "Goal for this session"');
   const open = openSession();
@@ -202,11 +217,26 @@ function cmdStatus() {
   if (m.wallMinutes >= 50) console.log('\n⏰ ~1h budget nearly used — start wrapping up.');
 }
 
-function cmdEnd() {
+function cmdEnd(args) {
   const open = openSession();
   if (!open) die('No open session to end.');
-  const m = measure(open.start);
-  const entry = { id: open.id, goal: open.goal, start: open.start, end: new Date().toISOString(), ...m };
+  const at = takeAt(args);
+  const endMs = at ? Date.parse(at) : Date.now();
+  const m = measure(open.start, endMs);
+  // An end long after the last activity inflates wall time (S10: 441 min wall, 30 active).
+  const idle = m.lastActivityMs === null ? 0 : (endMs - m.lastActivityMs) / 60_000;
+  if (!at && !args.includes('--now') && idle > STALE_MINUTES) {
+    const last = new Date(m.lastActivityMs).toISOString();
+    die(
+      `Last activity was ${Math.round(idle)} min ago (${last}).
+` +
+        `End at that time:  npm run session:end -- --at ${last}
+` +
+        `Or end now anyway: npm run session:end -- --now`,
+    );
+  }
+  const { lastActivityMs, ...measured } = m;
+  const entry = { id: open.id, goal: open.goal, start: open.start, end: new Date(endMs).toISOString(), ...measured };
 
   const stats = readStats().filter((s) => s.id !== open.id);
   stats.push(entry);
@@ -221,8 +251,9 @@ function cmdEnd() {
       md.replace(/<!-- stats:start -->[\s\S]*?<!-- stats:end -->/, `<!-- stats:start -->\n${statsBlock(m)}\n<!-- stats:end -->`),
     );
   }
-  git(['add', '-A']);
-  git(['commit', '-m', `session(${open.id}): end — ${m.wallMinutes} min, ${fmtTokens(m.tokens.total)} tokens${TRAILER}`]);
+  git(['add', '--', ...END_PATHS.filter((p) => fs.existsSync(path.join(ROOT, p)))]);
+  const env = at ? { GIT_AUTHOR_DATE: at, GIT_COMMITTER_DATE: at } : {};
+  git(['commit', '-m', `session(${open.id}): end — ${m.activeMinutes} min active, ${fmtTokens(m.tokens.total)} tokens${TRAILER}`], env);
   console.log(`Ended ${open.id}\n${statsBlock(m)}`);
 }
 

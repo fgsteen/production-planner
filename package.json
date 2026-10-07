@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc",
     "test": "npm run test:scripts && npm run typecheck && npm run test:unit && npm run test:e2e",
+    "test:quiet": "node --test --test-reporter=dot \"scripts/**/*.test.mjs\" && tsc && vitest run --reporter=dot --silent && playwright test --reporter=dot",
     "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",

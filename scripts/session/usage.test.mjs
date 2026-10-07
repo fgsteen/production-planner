@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   activeMinutes,
+  avgContext,
   fmtTokens,
+  lastActivity,
   parseUsageRecords,
   projectSlug,
   summarizeUsage,
@@ -57,4 +59,15 @@ test('formatting and slug', () => {
   assert.equal(fmtTokens(12_345), '12.3k');
   assert.equal(fmtTokens(2_500_000), '2.50M');
   assert.equal(projectSlug('C:\\Users\\me\\code\\production-planner'), 'C--Users-me-code-production-planner');
+});
+
+test('lastActivity returns the latest stamp inside the window', () => {
+  const ts = ['2026-10-04T10:00:00Z', '2026-10-04T12:00:00Z', '2026-10-04T11:00:00Z'];
+  assert.equal(lastActivity(ts, 0, Date.parse('2026-10-04T11:30:00Z')), Date.parse('2026-10-04T11:00:00Z'));
+  assert.equal(lastActivity(ts, Date.parse('2026-10-05T00:00:00Z'), Infinity), null);
+});
+
+test('avgContext divides all input-side tokens by calls', () => {
+  assert.equal(avgContext({ input: 2, cacheRead: 1000, cacheWrite: 98, output: 50, calls: 2 }), 550);
+  assert.equal(avgContext({ input: 0, cacheRead: 0, cacheWrite: 0, output: 0, calls: 0 }), 0);
 });

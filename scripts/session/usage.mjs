@@ -86,6 +86,20 @@ export function activeMinutes(timestamps, startMs, endMs, idleMinutes = 10) {
 
 export const totalTokens = (u) => u.input + u.cacheWrite + u.cacheRead + u.output;
 
+/** Latest timestamp within [startMs, endMs], in ms, or null. */
+export function lastActivity(timestamps, startMs, endMs) {
+  let last = null;
+  for (const t of timestamps.map((x) => Date.parse(x))) {
+    if (t >= startMs && t <= endMs && (last === null || t > last)) last = t;
+  }
+  return last;
+}
+
+/** Average context per model call (input + cache read + cache write), the main driver of cost. */
+export function avgContext(t) {
+  return t.calls ? Math.round((t.input + t.cacheRead + t.cacheWrite) / t.calls) : 0;
+}
+
 export function fmtTokens(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
