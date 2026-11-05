@@ -1,6 +1,6 @@
 # 0008 — Campaigns across weeks, cycle-based warm start
 
-- **Status:** accepted (refines [0007](0007-line-clear-milp-and-warm-start.md))
+- **Status:** superseded by [0013](0013-v2-rolling-simulation.md) (v1 only, tag `v1-yearly`)
 - **Date:** 2026-10-04 (S08)
 
 ## Context

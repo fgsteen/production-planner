@@ -21,6 +21,14 @@ needed. v1 (two sites, trucks, yearly MILP) stays available but is no longer dev
   every change can be explained in one line, and "as few changes as possible" maps to a fixed
   preference order (see requirements R80–R83). A solver can come later if the heuristic falls
   short.
+- **Model terms (user question, S11):** v2 is no longer a CLSP. That is a big-bucket model with
+  many products per period, continuous lot sizes and no order within a period. v2 is
+  **small-bucket**, closest to the **DLSP** on parallel machines with setup carry-over: one
+  product per machine per shift, all or nothing, and clears depend on the previous run. The step
+  loop is **model predictive control** (rolling-horizon rescheduling) with a
+  minimal-perturbation goal. Each min/max band acts like an (s, S) policy enforced by the
+  replanner. Per step the problem is small (e.g. 5 machines × 9 shifts × 30 products ≈ 1,350
+  binaries), so a MILP replanner is a realistic later comparison against the greedy one.
 - **Simulation core is pure functions:** `step(state, usageModel) → { state, changes, warnings }`.
   It's unit-tested without the UI. Usage sits behind an interface so that constant, seeded random
   and replayed-file models can plug in.

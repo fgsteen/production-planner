@@ -17,8 +17,13 @@ Working agreement for Claude: [../CLAUDE.md](../CLAUDE.md). Session protocol: th
 ## Live app
 https://fgsteen.github.io/production-planner/ — deployed by `.github/workflows/pages.yml` on every
 push to `main`. Data lives in each viewer's browser (localStorage); export JSON to share it.
+The root app is **v1** (yearly plan, tag `v1-yearly`, frozen). **v2** (rolling simulation, ADR 0013)
+is being built in `v2/`. Once S12 switches the deploy, it is served at the root and v1 at `/v1/`.
 
 ## Run locally
+The commands below are for v1 at the root. For v2, run the same commands inside `v2/`. Session
+tooling (`session:*`, `test:scripts`) stays at the root.
+
 - `npm install`, then `npx playwright install chromium` (once).
 - `npm run dev`: app at http://localhost:5173.
 - `npm test`: session tooling tests, typecheck, unit tests (Vitest) and e2e tests (Playwright).
@@ -26,6 +31,8 @@ push to `main`. Data lives in each viewer's browser (localStorage); export JSON 
   The e2e run writes screenshots to `test-results/screens/`.
 
 ## Code map
+The paths are the same in `v2/`, which S12 strips to one factory (no overview map, no MILP).
+
 | Path | What |
 | --- | --- |
 | `src/model/` | Master data types, capacity helpers, `validateDataset`, seed (demo) data. |

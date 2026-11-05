@@ -1,6 +1,6 @@
 # 0003 — Planning engine: mathematical optimisation (MILP), not ML or an agent
 
-- **Status:** accepted (S04, after a working spike)
+- **Status:** superseded by [0013](0013-v2-rolling-simulation.md) (v1 only, tag `v1-yearly`)
 - **Date:** 2026-10-04
 - **Session:** S01
 

@@ -1,6 +1,6 @@
 # 0009 — Fair-share unmet demand, time budgets for the warm start
 
-- **Status:** accepted
+- **Status:** superseded by [0013](0013-v2-rolling-simulation.md) (v1 only, tag `v1-yearly`)
 - **Date:** 2026-10-04 (S09)
 
 ## Context

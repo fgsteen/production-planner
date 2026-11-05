@@ -1,6 +1,6 @@
 # 0010 — Max campaign length: forced clean-downs, counted across weeks
 
-- **Status:** accepted
+- **Status:** superseded by [0013](0013-v2-rolling-simulation.md) (v1 only, tag `v1-yearly`)
 - **Date:** 2026-10-05
 - **Session:** S10
 

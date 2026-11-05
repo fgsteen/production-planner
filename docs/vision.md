@@ -1,55 +1,42 @@
 # Vision
 
+_v2, from S11. v1 (two sites, yearly plan, S01–S10) is documented at git tag `v1-yearly` and served at
+`/v1/`._
+
 ## Purpose
-**v2 (from S11):** a planner for **one factory** that keeps every product's stock between a
-**min** and a **max**. It simulates time one shift at a time. At each step it updates stock from
-what was made and used, projects the next 3 days and **corrects the schedule with as few changes
-as possible**. A timeline shows the changes. See [ADR 0013](decisions/0013-v2-rolling-simulation.md)
-and R70–R89.
+A planner for **one factory** that keeps every product's stock between a **min** and a **max**.
+It simulates time one shift at a time. At each step it updates stock from what was made and used,
+projects the next 3 days and **corrects the schedule with as few changes as possible**. A timeline
+shows what changed and why. See [ADR 0013](decisions/0013-v2-rolling-simulation.md) and R70–R90.
 
-**v1 (S01–S10, tag `v1-yearly`, served at `/v1/`):** a web-based production planner for a
-**manufacturing** operation. Given a **yearly forecast**, it proposes how to distribute production
-across the machines at two sites, and visualises the plan: machine load, changeover time and
-transport between sites. The sections below describe v1 unless they say otherwise.
-
-## Context (from the user, S01)
-- A **machine lineup** across **two geographical sites**; each site has different machines.
-- A lineup of **semi-finished goods**. Each machine can produce its own list of goods, at its own
-  **rate** and **OEE**.
-- Machines are **self-contained**: raw material in → semi-finished good out. One step, one machine.
-  Converting semi-finished goods into finished products is **out of scope** for now.
-- Production happens in **lots** (one manufacturing order each). Changeovers: a **large line clear**
-  between different products, and a faster **small line clear** between lots of the same product.
-- **Site B** only produces semi-finished goods. **Site A** produces them too and hosts the next
-  process step, so all demand lands at A and everything made at B is **transported B → A**.
-- Some products can be made at both sites, some only at one.
-- **Pre-SFG products** (after S06): a few products, made on the same machine types, are inputs
-  consumed at **B** to make SFGs already in the mix. Those made at A are trucked **A → B** on their
-  own lane. The quantities are much smaller than the SFGs' (R47, R48).
-- Demand is a **yearly forecast** of required quantity **per product**.
-- In reality there are **20–50 products** (after S05). Each product is a combination of three
-  **characteristics** (X, Y, Z); not every combination exists. Tables and charts must stay usable
-  at that scale, e.g. by grouping on a characteristic.
-- Every chart and table can be **downloaded as an image** for presentations.
-- When generating a plan, the user **chooses the priorities** (changeover time, transport, load balance, spare capacity).
-- **High-quality graphics** (flow diagrams with numbers, charts) are a core goal.
-- Hosted in the cloud, used through a URL; nothing to install.
-- Planning granularity: **shifts**. 3 shifts/day, 7 days/week.
+## Context (from the user)
+- **Machines** each make their own list of **semi-finished goods**, at their own **rate** and
+  **OEE**. A machine is self-contained: raw material in, product out.
+- Production happens in **lots** of one shift each. A **large line clear** is needed when the
+  product changes, and a faster **small line clear** between lots of the same product.
+- There are **20–50 products** in reality. Each is a combination of three **characteristics**
+  (X, Y, Z), so tables must stay usable at that scale, e.g. by grouping on a characteristic.
+- **Usage** draws products from stock every shift. It fluctuates in reality: a constant for now,
+  with seeded random variation and replayed real data later.
+- The schedule must be **stable**: change as few runs as possible, and never the shift about to
+  run.
+- Hosted in the cloud, used through a URL; nothing to install. **High-quality graphics** matter.
+- Granularity: **shifts** of 8 h, 3 per day, 7 days a week.
 
 ## Users
-For now only the user (single user). It will be **shown in demos**. It is **not** an
-enterprise system: no multi-tenant setup, no complex roles, no ERP integration.
+For now only the user (single user). It will be **shown in demos**. It is **not** an enterprise
+system: no multi-tenant setup, no complex roles, no ERP integration.
 
-## Goals (v1)
-1. **Overview:** see which machines are at which site and which products each one can make.
-2. **Forecast input:** enter how much of each category should be produced in a year.
-3. **Suggested plan:** the system distributes the forecast across capable machines.
-4. **Plan visualisation:** load per machine, total changeover time per machine, transport volume
-   between sites, and so on.
+## Goals (v2)
+1. **Master data:** machines, products, capabilities, and min/max/initial stock/usage per product.
+2. **Simulate:** step one shift at a time, or several at once, and reset to the start.
+3. **Replan:** keep projected stock inside min/max over the next 9 shifts with minimal changes,
+   with each change explained.
+4. **Visualise:** a machine × shift timeline coloured by change, plus stock and change tables.
 
 ## Non-goals (for now)
+- Multiple sites, transport, storage locations, yearly or weekly demand.
 - Finished-goods production and multi-step routings.
-- System integration (ERP etc.). The demo data uses generic names and fictional numbers. File
-  exchange via **Excel** (template, import, export) *is* in scope (user, after S05).
+- System integration (ERP etc.). The demo data uses generic names and fictional numbers.
 - Enterprise features: user management, permissions, audit.
-- Real-time shop-floor tracking.
+- Real-time shop-floor tracking. Machine breakdowns are not simulated (yet).
