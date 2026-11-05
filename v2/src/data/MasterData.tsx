@@ -1,19 +1,18 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { effectiveRate, unitsPerPallet } from '../model/capacity';
+import { WINDOW_SHIFTS, effectiveRate } from '../model/capacity';
 import { combinationName, productNames } from '../model/products';
-import type { Dataset, Machine, StorageAccepts, StorageLocation } from '../model/types';
+import type { Dataset, Machine, Product } from '../model/types';
 import { MAX_VARIANTS, exportJson, parseDataset } from '../store/dataset';
 import { useDataset } from '../store/DatasetContext';
-import { CheckboxCell, MonthDayListCell, NumberCell, RemoveButton, SelectCell, TextCell, WeekdaysCell } from '../ui/cells';
-import { fmt, productColor, siteColor } from '../ui/palette';
+import { NumberCell, RemoveButton, SelectCell, TextCell } from '../ui/cells';
+import { fmt, productColor } from '../ui/palette';
 
 const TABS = [
   ['machines', 'Machines'],
   ['characteristics', 'Characteristics'],
   ['products', 'Products'],
   ['capabilities', 'Capabilities'],
-  ['sites', 'Sites & logistics'],
-  ['stock', 'Initial stock'],
+  ['schedule', 'Seed schedule'],
   ['settings', 'Settings'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
@@ -43,8 +42,7 @@ export function MasterData() {
         {tab === 'characteristics' && <CharacteristicsEditor />}
         {tab === 'products' && <ProductsTable />}
         {tab === 'capabilities' && <CapabilitiesTable />}
-        {tab === 'sites' && <SitesAndLogistics />}
-        {tab === 'stock' && <InitialStockTable />}
+        {tab === 'schedule' && <ScheduleTable />}
         {tab === 'settings' && <SettingsForm />}
       </section>
     </div>
@@ -162,55 +160,29 @@ const countCaps = (ds: Dataset, key: 'machineId' | 'productId', id: string) => d
 
 function MachinesTable() {
   const { dataset, dispatch } = useDataset();
-  const siteOptions = dataset.sites.map((s) => ({ value: s.id, label: s.name }));
   return (
     <Table
-      head={['ID', 'Name', 'Site', 'Shifts/day', 'Working days', 'Small clear', 'Large clear', 'Maintenance days', '']}
-      numeric={[3, 5, 6]}
-      footer={dataset.sites.map((s) => (
-        <button key={s.id} className={BUTTON} onClick={() => dispatch({ type: 'addMachine', siteId: s.id })}>
-          + Machine at {s.name}
+      head={['ID', 'Name', 'Small clear', 'Large clear', '']}
+      numeric={[2, 3]}
+      footer={
+        <button className={BUTTON} onClick={() => dispatch({ type: 'addMachine' })}>
+          + Machine
         </button>
-      ))}
+      }
     >
       {dataset.machines.map((m) => {
         const update = (patch: Partial<Omit<Machine, 'id'>>) => dispatch({ type: 'updateMachine', id: m.id, patch });
         return (
           <tr key={m.id} data-testid={`machine-row-${m.id}`}>
-            <td className="tabular whitespace-nowrap px-2 font-medium">
-              <span className="flex items-center gap-2">
-                <Dot color={siteColor(m.siteId)} />
-                {m.id}
-              </span>
-            </td>
+            <td className="tabular whitespace-nowrap px-2 font-medium">{m.id}</td>
             <td className="min-w-36">
               <TextCell label={`${m.id} name`} value={m.name} onCommit={(name) => update({ name })} />
-            </td>
-            <td className="min-w-28">
-              <SelectCell label={`${m.id} site`} value={m.siteId} options={siteOptions} onChange={(siteId) => update({ siteId })} />
-            </td>
-            <td>
-              <NumberCell
-                label={`${m.id} shifts per day`}
-                value={m.calendar.shiftsPerDay}
-                onCommit={(shiftsPerDay) => update({ calendar: { ...m.calendar, shiftsPerDay } })}
-              />
-            </td>
-            <td>
-              <WeekdaysCell
-                label={`${m.id} working days`}
-                value={m.calendar.workingWeekdays}
-                onChange={(workingWeekdays) => update({ calendar: { ...m.calendar, workingWeekdays } })}
-              />
             </td>
             <td>
               <NumberCell label={`${m.id} small line clear`} suffix="min" value={m.smallLineClearMin} onCommit={(smallLineClearMin) => update({ smallLineClearMin })} />
             </td>
             <td>
               <NumberCell label={`${m.id} large line clear`} suffix="min" value={m.largeLineClearMin} onCommit={(largeLineClearMin) => update({ largeLineClearMin })} />
-            </td>
-            <td>
-              <MonthDayListCell label={`${m.id} maintenance days`} value={m.maintenance} onCommit={(maintenance) => update({ maintenance })} />
             </td>
             <td>
               <RemoveButton
@@ -284,15 +256,21 @@ function CharacteristicsEditor() {
   );
 }
 
+const STOCK_FIELDS: [keyof Pick<Product, 'min' | 'max' | 'initialStock' | 'usagePerShift'>, string][] = [
+  ['min', 'min'],
+  ['max', 'max'],
+  ['initialStock', 'initial stock'],
+  ['usagePerShift', 'usage per shift'],
+];
+
 function ProductsTable() {
   const { dataset, dispatch } = useDataset();
   const names = productNames(dataset);
   const chars = dataset.characteristics;
-  const preSfgs = dataset.products.filter((p) => p.isPreSfg);
   return (
     <Table
-      head={['ID', ...chars.map((c) => c.name), 'Name', 'Units / crate', 'Crates / pallet', 'Units / pallet', 'Pre-SFG', 'Uses pre-SFG', 'Machines', '']}
-      numeric={[chars.length + 2, chars.length + 3]}
+      head={['ID', ...chars.map((c) => c.name), 'Name', 'Min', 'Max', 'Initial stock', 'Usage / shift', 'Machines', '']}
+      numeric={[2, 3, 4, 5].map((i) => chars.length + i)}
       footer={
         <button className={BUTTON} onClick={() => dispatch({ type: 'addProduct' })}>
           + Product
@@ -327,40 +305,11 @@ function ProductsTable() {
                 onCommit={(name) => dispatch({ type: 'updateProduct', id: p.id, patch: { name } })}
               />
             </td>
-            <td>
-              <NumberCell
-                label={`${p.id} units per crate`}
-                value={p.unitsPerCrate}
-                onCommit={(unitsPerCrate) => dispatch({ type: 'updateProduct', id: p.id, patch: { unitsPerCrate } })}
-              />
-            </td>
-            <td>
-              <NumberCell
-                label={`${p.id} crates per pallet`}
-                value={p.cratesPerPallet}
-                onCommit={(cratesPerPallet) => dispatch({ type: 'updateProduct', id: p.id, patch: { cratesPerPallet } })}
-              />
-            </td>
-            <td className="tabular px-2 text-right text-muted">{fmt(unitsPerPallet(p))}</td>
-            <td>
-              <CheckboxCell
-                label={`${p.id} is a pre-SFG`}
-                checked={!!p.isPreSfg}
-                onChange={(isPreSfg) => dispatch({ type: 'updateProduct', id: p.id, patch: { isPreSfg, ...(isPreSfg && { preSfgId: undefined }) } })}
-              />
-            </td>
-            <td className="min-w-28">
-              {p.isPreSfg ? (
-                <span className="px-2 text-faint">—</span>
-              ) : (
-                <SelectCell
-                  label={`${p.id} uses pre-SFG`}
-                  value={p.preSfgId ?? ''}
-                  options={[{ value: '', label: 'none' }, ...preSfgs.map((q) => ({ value: q.id, label: names.get(q.id)! }))]}
-                  onChange={(preSfgId) => dispatch({ type: 'updateProduct', id: p.id, patch: { preSfgId: preSfgId || undefined } })}
-                />
-              )}
-            </td>
+            {STOCK_FIELDS.map(([key, label]) => (
+              <td key={key}>
+                <NumberCell label={`${p.id} ${label}`} value={p[key]} onCommit={(v) => dispatch({ type: 'updateProduct', id: p.id, patch: { [key]: v } })} />
+              </td>
+            ))}
             <td className="tabular px-2 text-muted">{machines.length ? machines.join(', ') : <span className="text-[#e15759]">none</span>}</td>
             <td>
               <RemoveButton
@@ -399,10 +348,7 @@ function CapabilitiesTable() {
         return (
           <tr key={key} data-testid={`cap-row-${key}`}>
             <td className="whitespace-nowrap px-2">
-              <span className="flex items-center gap-2">
-                <Dot color={siteColor(machine?.siteId ?? '')} />
-                {machine?.name ?? c.machineId}
-              </span>
+              {machine?.name ?? c.machineId}
             </td>
             <td className="whitespace-nowrap px-2">
               <span className="flex items-center gap-2">
@@ -456,173 +402,46 @@ function AddCapability() {
   );
 }
 
-function SubHeading({ children }: { children: ReactNode }) {
-  return <h3 className="mb-1 mt-6 text-sm font-semibold first:mt-0">{children}</h3>;
-}
-
-const ACCEPTS: { value: StorageAccepts; label: string }[] = [
-  { value: 'local', label: 'Produced at this site' },
-  { value: 'inbound', label: 'Inbound by truck' },
-];
-
-function SitesAndLogistics() {
+/** The starting runs (R73): one row per machine, one column per shift of the window. */
+function ScheduleTable() {
   const { dataset, dispatch } = useDataset();
-  const siteOptions = dataset.sites.map((s) => ({ value: s.id, label: s.name }));
-  const siteName = new Map(dataset.sites.map((s) => [s.id, s.name]));
-  return (
-    <div>
-      <SubHeading>Sites</SubHeading>
-      <Table head={['ID', 'Name', 'Demand site', 'Holidays']}>
-        {dataset.sites.map((s) => (
-          <tr key={s.id} data-testid={`site-row-${s.id}`}>
-            <td className="whitespace-nowrap px-2 font-medium">
-              <span className="flex items-center gap-2">
-                <Dot color={siteColor(s.id)} />
-                {s.id}
-              </span>
-            </td>
-            <td className="min-w-36">
-              <TextCell label={`${s.id} name`} value={s.name} onCommit={(name) => dispatch({ type: 'updateSite', id: s.id, patch: { name } })} />
-            </td>
-            <td>
-              <span className="flex justify-center">
-                <input
-                  type="radio"
-                  name="demand-site"
-                  aria-label={`${s.id} is the demand site`}
-                  className="h-4 w-4 cursor-pointer accent-[var(--accent)]"
-                  checked={s.isDemandSite}
-                  onChange={() => dispatch({ type: 'updateSite', id: s.id, patch: { isDemandSite: true } })}
-                />
-              </span>
-            </td>
-            <td className="w-full">
-              <MonthDayListCell label={`${s.id} holidays`} value={s.holidays} onCommit={(holidays) => dispatch({ type: 'updateSite', id: s.id, patch: { holidays } })} />
-            </td>
-          </tr>
-        ))}
-      </Table>
-
-      <SubHeading>Storage locations</SubHeading>
-      <Table
-        head={['ID', 'Name', 'Site', 'Accepts', 'Capacity', '']}
-        numeric={[4]}
-        footer={dataset.sites.map((s) => (
-          <button key={s.id} className={BUTTON} onClick={() => dispatch({ type: 'addStorage', siteId: s.id })}>
-            + Storage at {s.name}
-          </button>
-        ))}
-      >
-        {dataset.storageLocations.map((l) => {
-          const update = (patch: Partial<Omit<StorageLocation, 'id'>>) => dispatch({ type: 'updateStorage', id: l.id, patch });
-          return (
-            <tr key={l.id} data-testid={`storage-row-${l.id}`}>
-              <td className="tabular whitespace-nowrap px-2 font-medium">{l.id}</td>
-              <td className="min-w-48">
-                <TextCell label={`${l.id} name`} value={l.name} onCommit={(name) => update({ name })} />
-              </td>
-              <td className="min-w-28">
-                <SelectCell label={`${l.id} site`} value={l.siteId} options={siteOptions} onChange={(siteId) => update({ siteId })} />
-              </td>
-              <td className="min-w-44">
-                <SelectCell label={`${l.id} accepts`} value={l.accepts} options={ACCEPTS} onChange={(accepts) => update({ accepts })} />
-              </td>
-              <td>
-                <NumberCell label={`${l.id} capacity`} suffix="pal" value={l.capacityPallets} onCommit={(capacityPallets) => update({ capacityPallets })} />
-              </td>
-              <td>
-                <RemoveButton
-                  label={`Remove ${l.id}`}
-                  onClick={() => {
-                    if (confirm(`Remove ${l.name}?`)) dispatch({ type: 'removeStorage', id: l.id });
-                  }}
-                />
-              </td>
-            </tr>
-          );
-        })}
-      </Table>
-
-      <SubHeading>Truck lanes</SubHeading>
-      <Table head={['Lane', 'Max trucks / week', 'Pallets / truck', 'Weekly capacity', 'Runs weekends & holidays']} numeric={[1, 2]}>
-        {dataset.truckLanes.map((t) => (
-          <tr key={t.id} data-testid={`truck-row-${t.id}`}>
-            <td className="whitespace-nowrap px-2 font-medium">
-              {siteName.get(t.fromSiteId) ?? t.fromSiteId} &rarr; {siteName.get(t.toSiteId) ?? t.toSiteId}
-            </td>
-            <td>
-              <NumberCell
-                label={`${t.id} max trucks per week`}
-                value={t.maxTrucksPerWeek}
-                onCommit={(maxTrucksPerWeek) => dispatch({ type: 'updateTruckLane', id: t.id, patch: { maxTrucksPerWeek } })}
-              />
-            </td>
-            <td>
-              <NumberCell
-                label={`${t.id} pallets per truck`}
-                suffix="pal"
-                value={t.palletsPerTruck}
-                onCommit={(palletsPerTruck) => dispatch({ type: 'updateTruckLane', id: t.id, patch: { palletsPerTruck } })}
-              />
-            </td>
-            <td className="tabular px-2 text-right text-muted">{fmt(t.maxTrucksPerWeek * t.palletsPerTruck)} pallets</td>
-            <td>
-              <CheckboxCell
-                label={`${t.id} runs on weekends and holidays`}
-                checked={t.runsOnWeekendsAndHolidays}
-                onChange={(runsOnWeekendsAndHolidays) => dispatch({ type: 'updateTruckLane', id: t.id, patch: { runsOnWeekendsAndHolidays } })}
-              />
-            </td>
-          </tr>
-        ))}
-      </Table>
-    </div>
-  );
-}
-
-function InitialStockTable() {
-  const { dataset, dispatch } = useDataset();
-  const units = new Map(dataset.initialStock.map((s) => [`${s.locationId}/${s.productId}`, s.units]));
-  const locations = dataset.storageLocations;
   const names = productNames(dataset);
-  const pallets = (locationId: string) =>
-    dataset.products.reduce((a, p) => a + (units.get(`${locationId}/${p.id}`) ?? 0) / unitsPerPallet(p), 0);
+  const productIndex = new Map(dataset.products.map((p, i) => [p.id, i]));
+  const runAt = new Map(dataset.schedule.map((r) => [`${r.machineId}/${r.shift}`, r.productId]));
+  const shifts = Array.from({ length: WINDOW_SHIFTS }, (_, i) => i);
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted">
-        Units on hand at the start of week 1 of {dataset.settings.planningYear}. Empty means zero. The plan uses this stock before producing.
+        What each machine makes in the first {WINDOW_SHIFTS} shifts (3 days) of the simulation. Empty means idle. Only products the machine can make are offered.
       </p>
-      <Table head={['Product', ...locations.map((l) => l.name)]} numeric={locations.map((_, i) => i + 1)}>
-        {dataset.products.map((p, i) => (
-          <tr key={p.id} data-testid={`stock-row-${p.id}`}>
-            <td className="tabular whitespace-nowrap px-2 font-medium">
-              <span className="flex items-center gap-2" title={p.id}>
-                <Dot color={productColor(i)} />
-                {names.get(p.id)}
-              </span>
-            </td>
-            {locations.map((l) => (
-              <td key={l.id}>
-                <NumberCell
-                  label={`${p.id} initial stock at ${l.id}`}
-                  value={units.get(`${l.id}/${p.id}`) ?? 0}
-                  onCommit={(v) => dispatch({ type: 'setInitialStock', locationId: l.id, productId: p.id, units: v })}
-                />
-              </td>
-            ))}
-          </tr>
-        ))}
-        <tr className="text-xs text-muted">
-          <td className="px-2 py-2">Pallets / capacity</td>
-          {locations.map((l) => {
-            const used = pallets(l.id);
-            return (
-              <td key={l.id} className="tabular pr-9 text-right" style={used > l.capacityPallets ? { color: '#e15759' } : undefined}>
-                {fmt(Math.ceil(used))} / {fmt(l.capacityPallets)}
-              </td>
-            );
-          })}
-        </tr>
+      <Table head={['Machine', ...shifts.map((s) => `Shift ${s + 1}`)]}>
+        {dataset.machines.map((m) => {
+          const options = [
+            { value: '', label: '—' },
+            ...dataset.capabilities.filter((c) => c.machineId === m.id).map((c) => ({ value: c.productId, label: names.get(c.productId) ?? c.productId })),
+          ];
+          return (
+            <tr key={m.id} data-testid={`schedule-row-${m.id}`}>
+              <td className="tabular whitespace-nowrap px-2 font-medium">{m.name}</td>
+              {shifts.map((shift) => {
+                const productId = runAt.get(`${m.id}/${shift}`) ?? '';
+                return (
+                  <td key={shift} className="min-w-28">
+                    <span className="flex items-center gap-1">
+                      {productId && <Dot color={productColor(productIndex.get(productId) ?? 0)} />}
+                      <SelectCell
+                        label={`${m.id} shift ${shift + 1}`}
+                        value={productId}
+                        options={options}
+                        onChange={(v) => dispatch({ type: 'setRun', machineId: m.id, shift, productId: v || null })}
+                      />
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
       </Table>
     </div>
   );
@@ -633,24 +452,9 @@ function SettingsForm() {
   const { settings } = dataset;
   const rows: [string, string, ReactNode][] = [
     [
-      'Planning year',
-      'The ISO week-year the plan covers: Monday of week 1 to Sunday of week 52/53.',
-      <NumberCell label="Planning year" value={settings.planningYear} onCommit={(planningYear) => dispatch({ type: 'updateSettings', patch: { planningYear } })} />,
-    ],
-    [
       'Shift length',
-      'Hours per shift, for all machines.',
+      'Hours per shift, for all machines. The factory runs 3 shifts a day, 7 days a week.',
       <NumberCell label="Shift length" suffix="h" value={settings.shiftHours} onCommit={(shiftHours) => dispatch({ type: 'updateSettings', patch: { shiftHours } })} />,
-    ],
-    [
-      'Max campaign length',
-      'Most consecutive shifts one product may run on a machine.',
-      <NumberCell
-        label="Max campaign length"
-        suffix="shifts"
-        value={settings.maxCampaignShifts}
-        onCommit={(maxCampaignShifts) => dispatch({ type: 'updateSettings', patch: { maxCampaignShifts } })}
-      />,
     ],
   ];
   return (

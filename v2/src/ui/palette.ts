@@ -9,7 +9,6 @@ export function productColor(index: number): string {
   return PRODUCT_COLORS[index % PRODUCT_COLORS.length];
 }
 
-export const siteColor = (siteId: string) => (siteId === 'B' ? 'var(--site-b)' : 'var(--site-a)');
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 export const fmt = (n: number) => nf.format(n);
