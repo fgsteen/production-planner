@@ -1,7 +1,7 @@
 # Requirements
 
-Priority: **M** must · **S** should · **C** could. Status: idea → agreed → building → done.
-Source: the session in which the requirement was agreed (ideas raised between sessions count for the next one).
+Priority: **M** must · **S** should · **C** could. Status: idea → building → building → done.
+Source: the session in which the requirement was building (ideas raised between sessions count for the next one).
 Covers v2 only; v1 requirements (R1–R66) are at git tag `v1-yearly`. Terms: see the glossary in [domain.md](domain.md).
 
 ## Carried over from v1
@@ -39,7 +39,7 @@ v2 lives in `v2/`; v1 is the root app (tag `v1-yearly`). The model for v2 is in
 | R75 | Step, part 1: stock = previous stock + what each machine actually made in the shift − usage. | M | agreed | S11 |
 | R76 | Step, part 2: the window rolls forward one shift and gets a new empty shift at the end. | M | agreed | S11 |
 | R77 | Step, part 3: project stock shift by shift over the 9-shift window from the scheduled runs and expected usage. Find each product's first shift below min or above max. | M | agreed | S11 |
-| R78 | Run output = rate × OEE × (shift length − clear time). A large clear applies when the product changes on the machine, a small clear otherwise. | M | agreed | S11 |
+| R78 | Run output = rate × OEE × (shift length − clear time). A large clear applies when the product changes on the machine, a small clear otherwise. | M | building | S11 |
 | R79 | Step, part 4: replan (R80–R83), then display (R84–R86). | M | agreed | S11 |
 | R80 | **Frozen:** the next shift can't be changed. | M | agreed | S11 |
 | R81 | **Below min:** the earliest breach goes first, then the deepest shortfall. Fixes are tried in the order add a run in an empty shift → move a run → swap a run's product. Fix just enough to stay ≥ min across the window. A move goes to the earliest valid slot on any capable machine; the same machine wins ties (also for R82; user, S12). | M | agreed | S11 |
@@ -48,7 +48,7 @@ v2 lives in `v2/`; v1 is the root app (tag `v1-yearly`). The model for v2 is in
 | R84 | **Timeline:** one row per machine, 9 shift rectangles (3 days). Green = planned, unchanged. Yellow = newly added. Red = replanned (moved or swapped). Dashed red outline = cancelled this step. Colours reset at each step. | M | agreed | S11 |
 | R85 | **Tables under the timeline:** stock per product (start, produced, consumed, end, against min/max, flagged if outside); changes with a one-line reason; unfixable breaches; projected stock per product as a sparkline over 9 shifts against min/max. | M | agreed | S11 |
 | R86 | Controls: Step +1, **Run N steps / autoplay**, **Reset** to the seeded start. Run N / autoplay stops at the first unfixable breach (user, S12). | M | agreed | S11 |
-| R87 | Usage model behind an interface. Constant per product first (placeholder). | M | agreed | S11 |
+| R87 | Usage model behind an interface. Constant per product first (placeholder). | M | building | S11 |
 | R88 | Usage later: seeded random noise ±% per product (reproducible). | S | idea | S11 |
 | R89 | Usage later: replay a usage series from a file (CSV/Excel). | C | idea | S11 |
 | R90 | About page explains the step loop, the model (small-bucket DLSP inside a model-predictive control loop), the replanner, the timeline colours and the assumptions. | M | building | S11 |

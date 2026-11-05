@@ -274,5 +274,30 @@
         "calls": 47
       }
     }
+  },
+  {
+    "id": "S12",
+    "goal": "R70-R73: strip v2/ to one factory, new master data + seeded schedule, deploy v2 at root and v1 at /v1/",
+    "start": "2026-11-05T23:00:53+01:00",
+    "end": "2026-11-05T22:18:55.061Z",
+    "wallMinutes": 18,
+    "activeMinutes": 18,
+    "tokens": {
+      "input": 200,
+      "cacheWrite": 154231,
+      "cacheRead": 12257962,
+      "output": 63259,
+      "calls": 94,
+      "total": 12475652
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 200,
+        "cacheWrite": 154231,
+        "cacheRead": 12257962,
+        "output": 63259,
+        "calls": 94
+      }
+    }
   }
 ]
