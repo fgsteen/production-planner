@@ -37,7 +37,8 @@ the 72 combinations exist ([ADR 0006](decisions/0006-product-characteristics-and
 
 ## Production
 - Run output = rate × OEE × (shift length − line clear time). The clear is large when the product
-  differs from the machine's previous shift, small otherwise.
+  differs from the machine's previous shift, small otherwise. After an idle shift, and in the
+  very first shift, the clear is large (S12 default).
 - A machine makes exactly its planned output: no breakdowns or scrap (yet).
 
 ## Planning model
