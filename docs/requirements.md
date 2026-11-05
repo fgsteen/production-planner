@@ -42,12 +42,12 @@ v2 lives in `v2/`; v1 is the root app (tag `v1-yearly`). The model for v2 is in
 | R78 | Run output = rate × OEE × (shift length − clear time). A large clear applies when the product changes on the machine, a small clear otherwise. | M | agreed | S11 |
 | R79 | Step, part 4: replan (R80–R83), then display (R84–R86). | M | agreed | S11 |
 | R80 | **Frozen:** the next shift can't be changed. | M | agreed | S11 |
-| R81 | **Below min:** the earliest breach goes first, then the deepest shortfall. Fixes are tried in the order add a run in an empty shift → move a run → swap a run's product. Fix just enough to stay ≥ min across the window. | M | agreed | S11 |
+| R81 | **Below min:** the earliest breach goes first, then the deepest shortfall. Fixes are tried in the order add a run in an empty shift → move a run → swap a run's product. Fix just enough to stay ≥ min across the window. A move goes to the earliest valid slot on any capable machine; the same machine wins ties (also for R82; user, S12). | M | agreed | S11 |
 | R82 | **Above max:** fixes are tried in the order move the run later (or out of the window) → swap it to a product that needs it → cancel it. | M | agreed | S11 |
 | R83 | A change is accepted only if it doesn't create a new or earlier breach for another product. If nothing works, the breach is reported as unfixable. | M | agreed | S11 |
 | R84 | **Timeline:** one row per machine, 9 shift rectangles (3 days). Green = planned, unchanged. Yellow = newly added. Red = replanned (moved or swapped). Dashed red outline = cancelled this step. Colours reset at each step. | M | agreed | S11 |
 | R85 | **Tables under the timeline:** stock per product (start, produced, consumed, end, against min/max, flagged if outside); changes with a one-line reason; unfixable breaches; projected stock per product as a sparkline over 9 shifts against min/max. | M | agreed | S11 |
-| R86 | Controls: Step +1, **Run N steps / autoplay**, **Reset** to the seeded start. | M | agreed | S11 |
+| R86 | Controls: Step +1, **Run N steps / autoplay**, **Reset** to the seeded start. Run N / autoplay stops at the first unfixable breach (user, S12). | M | agreed | S11 |
 | R87 | Usage model behind an interface. Constant per product first (placeholder). | M | agreed | S11 |
 | R88 | Usage later: seeded random noise ±% per product (reproducible). | S | idea | S11 |
 | R89 | Usage later: replay a usage series from a file (CSV/Excel). | C | idea | S11 |
