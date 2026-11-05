@@ -249,5 +249,30 @@
       }
     },
     "note": "includes a 411-min pause (22:11–05:01 UTC); active time is the real figure. Run from a conversation opened in the struktur folder."
+  },
+  {
+    "id": "S11",
+    "goal": "Plan v2 rework: single factory, rolling shift simulation (spec only, no code)",
+    "start": "2026-11-05T22:42:29+01:00",
+    "end": "2026-11-05T21:57:56.462Z",
+    "wallMinutes": 15,
+    "activeMinutes": 15,
+    "tokens": {
+      "input": 102,
+      "cacheWrite": 58433,
+      "cacheRead": 5176729,
+      "output": 36490,
+      "calls": 47,
+      "total": 5271754
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "input": 102,
+        "cacheWrite": 58433,
+        "cacheRead": 5176729,
+        "output": 36490,
+        "calls": 47
+      }
+    }
   }
 ]

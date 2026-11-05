@@ -31,7 +31,7 @@ v2 lives in `v2/`; v1 is the root app (tag `v1-yearly`). The model for v2 is in
 
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
-| R70 | Save v1: tag `v1-yearly`, copy the app to `v2/`, deploy v2 at the root and v1 at `/v1/`. | M | agreed | S11 |
+| R70 | Save v1: tag `v1-yearly`, copy the app to `v2/`, deploy v2 at the root and v1 at `/v1/`. | M | building | S11 |
 | R71 | One factory. No sites, transport, storage locations, pallets or yearly demand. | M | agreed | S11 |
 | R72 | Master data: machines (small/large line clear), products (X-Y-Z), capabilities (rate × OEE). Per product: **min**, **max**, **initial stock** and **usage per shift**. Not kept: maintenance, holidays, max campaign length. | M | agreed | S11 |
 | R73 | Demo data includes a **seeded schedule** for the first 9 shifts. | M | agreed | S11 |
