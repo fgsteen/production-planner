@@ -128,3 +128,24 @@ A machines ───────────────────────
 ## Not modelled (now)
 - Finished goods, the next process step.
 - Raw material availability. Truck scheduling beyond frequency × size.
+
+## v2 rolling simulation
+Agreed in S11 ([ADR 0013](decisions/0013-v2-rolling-simulation.md), R70–R89). Everything above
+describes v1. In v2 there's **one factory**: no sites, trucks, storage or demand.
+
+```
+Machine 1───* Capability *───1 Product (min, max, initial stock, usage/shift)
+  (small/large clear)  (rate, OEE)
+Schedule: Run = machine × shift × product   Window = 9 shifts (3 days)
+```
+
+| Term | Meaning |
+| --- | --- |
+| **Step** | Advance time by one shift (8 h): update stock, roll the window, project, replan, show. |
+| **Run** | One machine making one product for one shift. It is one lot. |
+| **Window** | The next 9 shifts. Shift 1 is **frozen**. |
+| **Breach** | A product's projected stock below min or above max in some shift of the window. |
+| **Change** | Add, move, swap or cancel of a run, each with a one-line reason. |
+
+Stock, min, max and usage are all in **units**. Production in a shift is exactly the planned
+output: no breakdowns or scrap (yet).

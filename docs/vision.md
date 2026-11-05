@@ -1,9 +1,16 @@
 # Vision
 
 ## Purpose
-A web-based production planner for a **manufacturing** operation. Given a **yearly forecast**, it
-proposes how to distribute production across the machines at two sites, and visualises the plan:
-machine load, changeover time and transport between sites.
+**v2 (from S11):** a planner for **one factory** that keeps every product's stock between a
+**min** and a **max**. It simulates time one shift at a time. At each step it updates stock from
+what was made and used, projects the next 3 days and **corrects the schedule with as few changes
+as possible**. A timeline shows the changes. See [ADR 0013](decisions/0013-v2-rolling-simulation.md)
+and R70–R89.
+
+**v1 (S01–S10, tag `v1-yearly`, served at `/v1/`):** a web-based production planner for a
+**manufacturing** operation. Given a **yearly forecast**, it proposes how to distribute production
+across the machines at two sites, and visualises the plan: machine load, changeover time and
+transport between sites. The sections below describe v1 unless they say otherwise.
 
 ## Context (from the user, S01)
 - A **machine lineup** across **two geographical sites**; each site has different machines.

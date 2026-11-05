@@ -1,66 +1,35 @@
 # Next session
 
-_Written at the end of S10 (2026-10-04). Reshaped on 2026-10-07 for the new workflow
-([ADR 0011](decisions/0011-session-skills-and-lean-docs.md))._
+_Written in S11 (2026-11-05), a planning-only session._
 
-Start with `/session-start`. The overall state lives in [README.md](README.md) (pages, code map)
-and [requirements.md](requirements.md) (what's done).
+Start with `/session-start`. **The project is now v2:** one factory and a rolling shift
+simulation that keeps stock between min and max. Read [ADR 0013](decisions/0013-v2-rolling-simulation.md),
+then requirements R70–R89 and the "v2 rolling simulation" section in [domain.md](domain.md).
+v1 (S01–S10) is tagged `v1-yearly`.
 
-## Changed in S10
-- **Plan page:** "What limits the plan" (R39), the line clears per machine panel (R65), and
-  group-by X/Y/Z in every plan view (R44 done).
-- **About page** (R50): the solver, model, constraints, goals and assumptions.
-- **Max campaign length** (R19, [ADR 0010](decisions/0010-max-campaign-length.md)): past the max
-  comes a forced large clear, and the same product may go on.
-- **Overview:** the map's PNG export keeps the machine → store lines.
-- **Tests:** `npm test` green. That's 7 tooling tests, typecheck, 87 unit tests and 26 e2e tests.
-- **Since S10 (ways of working):**
-  - session skills;
-  - a lean log template;
-  - `npm run test:quiet`;
-  - [perf.md](perf.md);
-  - a Ctx/call column in STATS;
-  - a 130k context limit per conversation, with a checkpoint and a fresh conversation
-    ([ADR 0012](decisions/0012-context-budget-per-conversation.md)). The status line shows the
-    size.
+## v2 roadmap (one goal per session)
+| Session | Goal | Reqs |
+| --- | --- | --- |
+| **S12** | Copy the app to `v2/`. Strip the v1-only parts: sites, trucks, storage, demand, HiGHS, Overview map. Build the new master data with min/max/initial stock/usage and a seeded schedule. Deploy v2 at the root and v1 at `/v1/`. Tests green. | R70–R73 |
+| S13 | Simulation core: a pure `step()` with run output including clears, stock update, window roll, projection and breach detection. A constant usage model. Unit tests. | R74–R78, R87 |
+| S14 | Greedy replanner: frozen shift, below-min and above-max order, no new breaches, a reason per change, unfixable list. Unit tests. | R79–R83 |
+| S15 | UI: machine × 9-shift timeline in green/yellow/red/dashed, the tables with sparklines, Step/Run N/autoplay/Reset. e2e. | R84–R86 |
+| S16 | Seeded random usage ±%, plus polish from using it. | R88 |
 
-## Known weak spots
-1. **Solve time at 2×** is 13.1 s, against a 6 s target. The relax LP alone takes 5–6 s and
-   step 2 about 5 s. See [perf.md](perf.md).
-2. **Clean-downs are continuous,** so reported large clears can be fractional (e.g. 16.4). The
-   warm start picks runs without the campaign cap.
-3. **Fairness costs units:** at 2×, 36 % of demand is unmet, against 24 % before R64. Levelling
-   is exact only for the worst group.
-4. **The MIP stage rarely improves the start,** and the gap shows as "not proven".
-5. **Group-by is per panel.** A page-wide selector may be nicer.
+## Proposed goal for S12
+**Goal:** R70–R73. Set up `v2/` from a copy, strip it down to one factory, add the new product
+fields and the seeded schedule, and deploy at the root with v1 at `/v1/`.
 
-## Proposed goal for S11
-**Goal:** Excel export and import of master data (R60–R63):
-- ExcelJS, lazy-loaded, recorded in an ADR;
-- export first, with a round-trip test;
-- import with per-row errors on the Master data page.
-
-**Stretch:** a template with dropdowns where the choices are fixed (e.g. factory location).
-
-**Alternative goal:** solve time at 2× (weak spot 1).
+**Stretch:** start S13's `step()` types and the output-per-run function with tests.
 
 ### First steps
-1. ADR for ExcelJS: bundle size, lazy-loading like HiGHS, sheet layout per master-data table.
-2. Export, plus a round-trip test (export → import gives the same dataset).
-3. Import with per-row errors.
+1. Copy the app files (`src/`, `e2e/`, configs, `package.json`) to `v2/`. Make the workflow build
+   both: v2 to `dist/`, v1 to `dist/v1/`.
+2. Delete the v1-only modules in `v2/` and fix the types.
+3. Product fields min/max/initialStock/usagePerShift, and a demo schedule.
 
-### Questions for the user
-- **Excel:** one workbook with a sheet per table, or one per area? Should demand be in the same
-  file?
-- **Group-by:** one selector per panel, or one for the whole Plan page?
-- **2× solve time:** is 13 s acceptable for overloaded what-ifs, or should S11 work on it first?
-
-## Later (rough order, to confirm with the user)
-- **Excel (R60–R63)**, if not S11.
-- **Visualisation (R30, R33, R37, R38):** Sankey, utilisation heatmap.
-- **Features:**
-  - shift-level timeline (R34);
-  - compare plans (R25);
-  - transit time (much later, user S09).
-- **Fairness slider** (open question), if the user wants it.
-- **Outside skills:** review 1–2 (e.g. TDD, ADRs) and adopt them per ADR 0011.
+## Later
+- Replay usage from a file (R89).
+- Machine breakdowns or scrap (production ≠ plan).
+- A step-back/history control (the user didn't pick it in S11).
+- v1 backlog (Excel R60–R63, Sankey, 2× solve time) is **frozen** with v1.

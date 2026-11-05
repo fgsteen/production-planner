@@ -87,3 +87,30 @@ Terms: see the glossary in [domain.md](domain.md).
 | ID | Requirement | Prio | Status | Source |
 | --- | --- | --- | --- | --- |
 | R50 | About page explaining the optimisation: the solver (HiGHS), how it runs in the browser, the model (variables, constraints, objective) and methods used (e.g. LP relaxation, branch and bound). Content from [ADR 0003](decisions/0003-planning-engine.md): MILP, HiGHS, CLSP; the model list (period, variables, constraints, objective, two levels, how HiGHS solves it); why not machine learning; why not an AI agent. Leave out the rest of the ADR (status, spike notes, consequences) (S04). User, S10: detail the solver and list the constraints and assumptions the model runs with. S10: About page (`#about`). | M | done | S01 |
+
+## v2 — rolling simulation (S11, [ADR 0013](decisions/0013-v2-rolling-simulation.md))
+v2 lives in `v2/`. R1–R66 describe v1 (root app, tag `v1-yearly`). The model for v2 is in
+[domain.md](domain.md#v2-rolling-simulation).
+
+| ID | Requirement | Prio | Status | Source |
+| --- | --- | --- | --- | --- |
+| R70 | Save v1: tag `v1-yearly`, copy the app to `v2/`, deploy v2 at the root and v1 at `/v1/`. | M | agreed | S11 |
+| R71 | One factory. No sites, transport, storage locations, pallets or yearly demand. | M | agreed | S11 |
+| R72 | Master data: machines (small/large line clear), products (X-Y-Z), capabilities (rate × OEE). Per product: **min**, **max**, **initial stock** and **usage per shift**. Not kept: maintenance, holidays, max campaign length. | M | agreed | S11 |
+| R73 | Demo data includes a **seeded schedule** for the first 9 shifts. | M | agreed | S11 |
+| R74 | **Step +1 shift** runs the chain in R75–R79 and shows the result. | M | agreed | S11 |
+| R75 | Step, part 1: stock = previous stock + what each machine actually made in the shift − usage. | M | agreed | S11 |
+| R76 | Step, part 2: the window rolls forward one shift and gets a new empty shift at the end. | M | agreed | S11 |
+| R77 | Step, part 3: project stock shift by shift over the 9-shift window from the scheduled runs and expected usage. Find each product's first shift below min or above max. | M | agreed | S11 |
+| R78 | Run output = rate × OEE × (shift length − clear time). A large clear applies when the product changes on the machine, a small clear otherwise. | M | agreed | S11 |
+| R79 | Step, part 4: replan (R80–R83), then display (R84–R86). | M | agreed | S11 |
+| R80 | **Frozen:** the next shift can't be changed. | M | agreed | S11 |
+| R81 | **Below min:** the earliest breach goes first, then the deepest shortfall. Fixes are tried in the order add a run in an empty shift → move a run → swap a run's product. Fix just enough to stay ≥ min across the window. | M | agreed | S11 |
+| R82 | **Above max:** fixes are tried in the order move the run later (or out of the window) → swap it to a product that needs it → cancel it. | M | agreed | S11 |
+| R83 | A change is accepted only if it doesn't create a new or earlier breach for another product. If nothing works, the breach is reported as unfixable. | M | agreed | S11 |
+| R84 | **Timeline:** one row per machine, 9 shift rectangles (3 days). Green = planned, unchanged. Yellow = newly added. Red = replanned (moved or swapped). Dashed red outline = cancelled this step. Colours reset at each step. | M | agreed | S11 |
+| R85 | **Tables under the timeline:** stock per product (start, produced, consumed, end, against min/max, flagged if outside); changes with a one-line reason; unfixable breaches; projected stock per product as a sparkline over 9 shifts against min/max. | M | agreed | S11 |
+| R86 | Controls: Step +1, **Run N steps / autoplay**, **Reset** to the seeded start. | M | agreed | S11 |
+| R87 | Usage model behind an interface. Constant per product first (placeholder). | M | agreed | S11 |
+| R88 | Usage later: seeded random noise ±% per product (reproducible). | S | idea | S11 |
+| R89 | Usage later: replay a usage series from a file (CSV/Excel). | C | idea | S11 |
