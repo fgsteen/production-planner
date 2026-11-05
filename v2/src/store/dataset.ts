@@ -1,0 +1,307 @@
+// Dataset store: a pure reducer plus JSON (de)serialisation. React wiring lives in DatasetContext.tsx.
+import { firstFreeCombination } from '../model/products';
+import { DEFAULT_LANE_A_B, seedDataset } from '../model/seed';
+import type { Capability, Characteristic, Dataset, Demand, Id, Machine, Product, Settings, Site, StorageLocation, TruckLane } from '../model/types';
+
+export type DatasetAction =
+  | { type: 'replace'; dataset: Dataset }
+  | { type: 'reset' }
+  | { type: 'updateSettings'; patch: Partial<Settings> }
+  | { type: 'updateSite'; id: Id; patch: Partial<Omit<Site, 'id'>> }
+  | { type: 'updateStorage'; id: Id; patch: Partial<Omit<StorageLocation, 'id'>> }
+  | { type: 'addStorage'; siteId: Id }
+  | { type: 'removeStorage'; id: Id }
+  | { type: 'updateTruckLane'; id: Id; patch: Partial<Omit<TruckLane, 'id'>> }
+  | { type: 'renameCharacteristic'; id: Id; name: string }
+  | { type: 'addVariant'; characteristicId: Id }
+  | { type: 'renameVariant'; characteristicId: Id; variantId: Id; name: string }
+  /** Ignored while a product uses the variant. */
+  | { type: 'removeVariant'; characteristicId: Id; variantId: Id }
+  | { type: 'updateMachine'; id: Id; patch: Partial<Omit<Machine, 'id'>> }
+  | { type: 'addMachine'; siteId: Id }
+  | { type: 'removeMachine'; id: Id }
+  | { type: 'updateProduct'; id: Id; patch: Partial<Omit<Product, 'id'>> }
+  | { type: 'addProduct' }
+  | { type: 'removeProduct'; id: Id }
+  | { type: 'updateCapability'; machineId: Id; productId: Id; patch: Partial<Capability> }
+  | { type: 'addCapability'; machineId: Id; productId: Id }
+  | { type: 'removeCapability'; machineId: Id; productId: Id }
+  | { type: 'setDemandTotal'; productId: Id; yearlyUnits: number }
+  /** `units: null` removes the override, so the week goes back to the even spread. */
+  | { type: 'setDemandWeek'; productId: Id; week: number; units: number | null }
+  | { type: 'clearDemandOverrides'; productId: Id }
+  /** Units on hand at the start of week 1; 0 removes the entry. */
+  | { type: 'setInitialStock'; locationId: Id; productId: Id; units: number };
+
+/** Next free id of the form `<prefix><n>`, zero-padded to `width`. */
+export function nextId(prefix: string, taken: Iterable<Id>, width = 2): Id {
+  const used = new Set(taken);
+  for (let n = 1; ; n++) {
+    const id = `${prefix}${String(n).padStart(width, '0')}`;
+    if (!used.has(id)) return id;
+  }
+}
+
+/** Applies `patch` to the item with `id`. */
+function patchById<T extends { id: Id }>(items: T[], id: Id, patch: NoInfer<Partial<Omit<T, 'id'>>>): T[] {
+  return items.map((x) => (x.id === id ? { ...x, ...patch } : x));
+}
+
+/** Most variants per characteristic (R17). */
+export const MAX_VARIANTS = 8;
+
+/** Applies `fn` to the characteristic with `id`. */
+function patchCharacteristic(ds: Dataset, id: Id, fn: (c: Characteristic) => Characteristic): Dataset {
+  return { ...ds, characteristics: ds.characteristics.map((c) => (c.id === id ? fn(c) : c)) };
+}
+
+/** Applies `fn` to the product's demand, creating an empty one if needed. */
+function patchDemand(ds: Dataset, productId: Id, fn: (d: Demand) => Demand): Dataset {
+  const current = ds.demand.find((d) => d.productId === productId) ?? { productId, yearlyUnits: 0, weekOverrides: {} };
+  return { ...ds, demand: [...ds.demand.filter((d) => d.productId !== productId), fn(current)] };
+}
+
+const isCap = (machineId: Id, productId: Id) => (c: Capability) => c.machineId === machineId && c.productId === productId;
+
+export function datasetReducer(ds: Dataset, action: DatasetAction): Dataset {
+  switch (action.type) {
+    case 'replace':
+      return action.dataset;
+    case 'reset':
+      return seedDataset;
+
+    case 'updateSettings':
+      return { ...ds, settings: { ...ds.settings, ...action.patch } };
+    case 'updateSite': {
+      let sites = patchById(ds.sites, action.id, action.patch);
+      // Exactly one demand site: choosing a new one clears the others.
+      if (action.patch.isDemandSite) sites = sites.map((s) => (s.id === action.id ? s : { ...s, isDemandSite: false }));
+      return { ...ds, sites };
+    }
+    case 'updateStorage':
+      return { ...ds, storageLocations: patchById(ds.storageLocations, action.id, action.patch) };
+    case 'addStorage': {
+      const id = nextId(`${action.siteId}-S`, ds.storageLocations.map((l) => l.id), 1);
+      const location: StorageLocation = { id, name: `New storage ${id}`, siteId: action.siteId, capacityPallets: 100, accepts: 'local' };
+      return { ...ds, storageLocations: [...ds.storageLocations, location] };
+    }
+    case 'removeStorage':
+      return {
+        ...ds,
+        storageLocations: ds.storageLocations.filter((l) => l.id !== action.id),
+        initialStock: ds.initialStock.filter((s) => s.locationId !== action.id),
+      };
+    case 'updateTruckLane':
+      return { ...ds, truckLanes: patchById(ds.truckLanes, action.id, action.patch) };
+
+    case 'renameCharacteristic':
+      return patchCharacteristic(ds, action.id, (c) => ({ ...c, name: action.name }));
+    case 'addVariant':
+      return patchCharacteristic(ds, action.characteristicId, (c) => {
+        if (c.variants.length >= MAX_VARIANTS) return c;
+        const id = nextId(c.id, c.variants.map((v) => v.id), 1);
+        return { ...c, variants: [...c.variants, { id, name: `New ${id}` }] };
+      });
+    case 'renameVariant':
+      return patchCharacteristic(ds, action.characteristicId, (c) => ({
+        ...c,
+        variants: c.variants.map((v) => (v.id === action.variantId ? { ...v, name: action.name } : v)),
+      }));
+    case 'removeVariant':
+      if (ds.products.some((p) => p.variants[action.characteristicId] === action.variantId)) return ds;
+      return patchCharacteristic(ds, action.characteristicId, (c) => ({ ...c, variants: c.variants.filter((v) => v.id !== action.variantId) }));
+
+    case 'updateMachine':
+      return { ...ds, machines: patchById(ds.machines, action.id, action.patch) };
+    case 'addMachine': {
+      const id = nextId(action.siteId, ds.machines.map((m) => m.id), 1);
+      const machine: Machine = {
+        id,
+        name: `Machine ${id}`,
+        siteId: action.siteId,
+        calendar: { shiftsPerDay: 3, workingWeekdays: [1, 2, 3, 4, 5, 6, 7] },
+        smallLineClearMin: 20,
+        largeLineClearMin: 90,
+        maintenance: [],
+      };
+      return { ...ds, machines: [...ds.machines, machine] };
+    }
+    case 'removeMachine':
+      return {
+        ...ds,
+        machines: ds.machines.filter((m) => m.id !== action.id),
+        capabilities: ds.capabilities.filter((c) => c.machineId !== action.id),
+      };
+
+    case 'updateProduct': {
+      let products = patchById(ds.products, action.id, action.patch);
+      // A product that stops being a pre-SFG is no longer used as one.
+      if (action.patch.isPreSfg === false) products = products.map((p) => (p.preSfgId === action.id ? { ...p, preSfgId: undefined } : p));
+      return { ...ds, products };
+    }
+    case 'addProduct': {
+      const id = nextId('P', ds.products.map((p) => p.id));
+      // The first unused combination, named after it; if all are taken, a duplicate that validation flags.
+      const variants = firstFreeCombination(ds.characteristics, ds.products) ?? Object.fromEntries(ds.characteristics.map((c) => [c.id, c.variants[0]?.id ?? '']));
+      const product: Product = { id, name: '', variants, unitsPerCrate: 24, cratesPerPallet: 40 };
+      return { ...ds, products: [...ds.products, product] };
+    }
+    case 'removeProduct':
+      return {
+        ...ds,
+        // SFGs that used it as their pre-SFG no longer use one.
+        products: ds.products.filter((p) => p.id !== action.id).map((p) => (p.preSfgId === action.id ? { ...p, preSfgId: undefined } : p)),
+        capabilities: ds.capabilities.filter((c) => c.productId !== action.id),
+        demand: ds.demand.filter((d) => d.productId !== action.id),
+        initialStock: ds.initialStock.filter((s) => s.productId !== action.id),
+      };
+
+    case 'updateCapability': {
+      const match = isCap(action.machineId, action.productId);
+      return { ...ds, capabilities: ds.capabilities.map((c) => (match(c) ? { ...c, ...action.patch } : c)) };
+    }
+    case 'addCapability':
+      if (ds.capabilities.some(isCap(action.machineId, action.productId))) return ds;
+      return {
+        ...ds,
+        capabilities: [...ds.capabilities, { machineId: action.machineId, productId: action.productId, ratePerHour: 1000, oeePct: 75 }],
+      };
+    case 'removeCapability':
+      return { ...ds, capabilities: ds.capabilities.filter((c) => !isCap(action.machineId, action.productId)(c)) };
+
+    case 'setDemandTotal':
+      return patchDemand(ds, action.productId, (d) => ({ ...d, yearlyUnits: action.yearlyUnits }));
+    case 'setDemandWeek':
+      return patchDemand(ds, action.productId, (d) => {
+        const { [action.week]: _, ...rest } = d.weekOverrides;
+        return { ...d, weekOverrides: action.units === null ? rest : { ...rest, [action.week]: action.units } };
+      });
+    case 'clearDemandOverrides':
+      return patchDemand(ds, action.productId, (d) => ({ ...d, weekOverrides: {} }));
+    case 'setInitialStock': {
+      const { locationId, productId, units } = action;
+      const rest = ds.initialStock.filter((s) => !(s.locationId === locationId && s.productId === productId));
+      return { ...ds, initialStock: units === 0 ? rest : [...rest, { locationId, productId, units }] };
+    }
+  }
+}
+
+// --- JSON ---------------------------------------------------------------------------------------
+
+export function exportJson(ds: Dataset): string {
+  return JSON.stringify(ds, null, 2);
+}
+
+const COLLECTIONS = ['sites', 'storageLocations', 'truckLanes', 'machines', 'products', 'capabilities'] as const;
+
+const isObject = (x: unknown) => typeof x === 'object' && x !== null;
+
+/** `YYYY-MM-DD` → `MM-DD` (dropping duplicates); anything else is kept for validation to report. */
+function toMonthDays(days: string[] | undefined): string[] {
+  if (days === undefined) return [];
+  if (!Array.isArray(days)) return days; // malformed: left for validation / the error boundary
+  const out = days.map((d) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : d));
+  return [...new Set(out)];
+}
+
+export type ParseResult = { ok: true; dataset: Dataset } | { ok: false; error: string };
+
+/**
+ * Parses a JSON scenario. Rejects anything that isn't structurally a v1 dataset; consistency
+ * problems (bad references, out-of-range numbers) are left to `validateDataset`, like edits are.
+ */
+export function parseDataset(text: string): ParseResult {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'Not valid JSON' };
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { ok: false, error: 'Expected a JSON object' };
+  const obj = raw as Record<string, unknown>;
+  if (obj.version !== 1) return { ok: false, error: `Unsupported version ${JSON.stringify(obj.version)} (expected 1)` };
+  if (typeof obj.settings !== 'object' || obj.settings === null) return { ok: false, error: 'Missing "settings"' };
+  for (const key of COLLECTIONS) {
+    if (!Array.isArray(obj[key])) return { ok: false, error: `Missing or invalid "${key}" list` };
+  }
+  if (obj.demand !== undefined && !Array.isArray(obj.demand)) return { ok: false, error: 'Invalid "demand" list' };
+  if (obj.initialStock !== undefined && !Array.isArray(obj.initialStock)) return { ok: false, error: 'Invalid "initialStock" list' };
+  if (obj.characteristics !== undefined && !Array.isArray(obj.characteristics)) return { ok: false, error: 'Invalid "characteristics" list' };
+  const ds = raw as Dataset;
+  const dataset: Dataset = {
+    ...ds,
+    // Files from before S06 have no characteristics: take the demo's, give each product its own
+    // combination, and keep its old name as a custom name.
+    ...withCharacteristics(ds),
+    // Settings added after v1 shipped (e.g. planningYear) fall back to the demo defaults.
+    settings: { ...seedDataset.settings, ...(obj.settings as Partial<Settings>) },
+    // Files from before S04: no demand, and holidays/maintenance as full dates.
+    // Malformed entries (e.g. null) pass through untouched; the error boundary handles them.
+    // Files from before S05 have no initial stock: start empty.
+    initialStock: ds.initialStock ?? [],
+    demand: (ds.demand ?? []).map((d) => (isObject(d) ? { ...d, weekOverrides: d.weekOverrides ?? {} } : d)),
+    sites: ds.sites.map((s) => (isObject(s) ? { ...s, holidays: toMonthDays(s.holidays) } : s)),
+    machines: ds.machines.map((m) => (isObject(m) ? { ...m, maintenance: toMonthDays(m.maintenance) } : m)),
+    // Files from before S07 have only the B → A lane: add the A → B lane for pre-SFGs (R48).
+    truckLanes: withReturnLane(ds),
+    // S07 builds wrote the pre-SFG fields as `isPreSmg` / `preSmgId` (renamed after S07).
+    products: withPreSfgNames(withCharacteristics(ds).products),
+  };
+  return { ok: true, dataset };
+}
+
+function withReturnLane(ds: Dataset): TruckLane[] {
+  const demand = ds.sites.find((s) => isObject(s) && s.isDemandSite);
+  const other = ds.sites.find((s) => isObject(s) && !s.isDemandSite);
+  if (!demand || !other || ds.truckLanes.some((l) => isObject(l) && l.fromSiteId === demand.id)) return ds.truckLanes;
+  const id = ds.truckLanes.some((l) => isObject(l) && l.id === DEFAULT_LANE_A_B.id) ? nextId('A-B', ds.truckLanes.map((l) => l.id), 1) : DEFAULT_LANE_A_B.id;
+  return [...ds.truckLanes, { ...DEFAULT_LANE_A_B, id, fromSiteId: demand.id, toSiteId: other.id }];
+}
+
+type S07Product = Product & { isPreSmg?: boolean; preSmgId?: Id };
+
+function withPreSfgNames(products: Product[]): Product[] {
+  return (products as S07Product[]).map((p) => {
+    if (!isObject(p) || (p.isPreSmg === undefined && p.preSmgId === undefined)) return p;
+    const { isPreSmg, preSmgId, ...rest } = p;
+    return { ...rest, ...(isPreSmg !== undefined && { isPreSfg: isPreSmg }), ...(preSmgId !== undefined && { preSfgId: preSmgId }) };
+  });
+}
+
+function withCharacteristics(ds: Dataset): Pick<Dataset, 'characteristics' | 'products'> {
+  const characteristics = ds.characteristics ?? seedDataset.characteristics;
+  const products: Product[] = [];
+  for (const p of ds.products) {
+    if (!isObject(p) || isObject(p.variants)) products.push(p);
+    else products.push({ ...p, name: p.name ?? '', variants: firstFreeCombination(characteristics, products.filter(isObject)) ?? {} });
+  }
+  return { characteristics, products };
+}
+
+// --- persistence --------------------------------------------------------------------------------
+
+export const STORAGE_KEY = 'production-planner/dataset/v1';
+
+/** Loads the saved dataset, falling back to the demo seed if none is saved or it is unreadable. */
+export function loadDataset(storage: Pick<Storage, 'getItem'> | undefined): Dataset {
+  try {
+    const text = storage?.getItem(STORAGE_KEY);
+    if (text) {
+      const parsed = parseDataset(text);
+      if (parsed.ok) return parsed.dataset;
+    }
+  } catch {
+    // Storage blocked (private mode etc.): use the seed.
+  }
+  return seedDataset;
+}
+
+/** Saves the dataset; the untouched demo seed is not stored, so the app keeps tracking seed updates. */
+export function saveDataset(storage: Pick<Storage, 'setItem' | 'removeItem'> | undefined, ds: Dataset): void {
+  try {
+    if (ds === seedDataset) storage?.removeItem(STORAGE_KEY);
+    else storage?.setItem(STORAGE_KEY, JSON.stringify(ds));
+  } catch {
+    // Quota or blocked storage: editing still works in memory.
+  }
+}
