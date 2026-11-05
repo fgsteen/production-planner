@@ -24,6 +24,12 @@
         "--strictPort"
       ],
       "port": 5174
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--outDir", "site", "--port", "4180", "--strictPort"],
+      "port": 4180
     }
   ]
 }

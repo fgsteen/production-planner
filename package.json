@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:site": "npm run build && npm --prefix v2 run build && node scripts/build-site.mjs",
     "preview": "vite preview",
     "typecheck": "tsc",
     "test": "npm run test:scripts && npm run typecheck && npm run test:unit && npm run test:e2e",

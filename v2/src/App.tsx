@@ -58,6 +58,9 @@ function Shell() {
             ))}
           </nav>
           <span className="ml-auto hidden text-xs text-faint sm:inline">{dataset === seedDataset ? 'Demo data' : 'Your data (saved in this browser)'}</span>
+          <a href="v1/" className="text-xs text-muted hover:text-ink" title="The earlier yearly planner (two sites, trucks, HiGHS)">
+            v1
+          </a>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
